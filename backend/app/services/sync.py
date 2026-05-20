@@ -82,12 +82,16 @@ async def run_sync(session: AsyncSession) -> list[SyncLog]:
 
     user_email = settings.user_email
     if not user_email:
-        profile = (
-            GmailExtractor(creds, "placeholder@local").service.users()
-            .getProfile(userId="me")
-            .execute()
-        )
-        user_email = profile.get("emailAddress", "")
+        try:
+            profile = (
+                GmailExtractor(creds, "placeholder@local").service.users()
+                .getProfile(userId="me")
+                .execute()
+            )
+            user_email = profile.get("emailAddress", "") or ""
+        except Exception as e:
+            logger.warning("gmail_profile_lookup_failed", error=str(e))
+            user_email = ""
 
     user_domain = email_domain(user_email) or ""
     gmail = GmailExtractor(creds, user_email)

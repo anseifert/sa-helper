@@ -20,8 +20,11 @@ async def google_callback(
     code: str = Query(...),
     session: AsyncSession = Depends(get_session),
 ) -> RedirectResponse:
-    await save_google_tokens(session, code)
     settings = get_settings()
+    try:
+        await save_google_tokens(session, code)
+    except Exception:
+        return RedirectResponse(f"{settings.frontend_url}/settings?oauth_error=google")
     return RedirectResponse(f"{settings.frontend_url}/settings?connected=google")
 
 

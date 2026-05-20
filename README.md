@@ -41,6 +41,7 @@ docker compose exec ollama ollama pull llama3.2
 2. Credentials → OAuth client (Web).  
 3. Authorized redirect URI: value of `GOOGLE_REDIRECT_URI` (default `http://localhost:8000/api/v1/oauth/google/callback`).  
 4. Scopes: Gmail readonly, Calendar readonly, Drive readonly (configured in `.env`).
+5. APIs & Services → **Library** → enable **Google Drive API** (required for sync; without it Drive returns 403).
 
 ## Local development
 
@@ -94,3 +95,9 @@ See `deploy/Caddyfile.example` — reverse-proxy `/api` and `/docs` to backend, 
 ## Environment variables
 
 See `.env.example`. No OpenAI/Anthropic or other cloud LLM keys are used anywhere in this repo.
+
+## Troubleshooting Google sync
+
+- **Drive sync fails (403 / internal error):** Enable **Google Drive API** in the same Google Cloud project as your OAuth client, then in the app use Settings → disconnect/reconnect Google (or revoke the app at [myaccount.google.com/permissions](https://myaccount.google.com/permissions)) so tokens include Drive scope.
+- **Check which connector failed:** `GET /api/v1/sync/status` or the dashboard sync health widget; `drive.error` has the message.
+- Set `USER_EMAIL` in `.env` to your Google address so mention filtering works.

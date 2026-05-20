@@ -14,6 +14,9 @@ export default function SettingsPage() {
     if (params.get("connected") === "google") {
       setMsg("Google connected successfully.");
     }
+    if (params.get("oauth_error") === "google") {
+      setMsg("Google sign-in failed. Check server logs and try Connect Google again.");
+    }
   }, []);
 
   const runSync = async () => {
