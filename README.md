@@ -21,6 +21,7 @@ Greenfield task hub for a single Red Hat Solutions Architect: auto-extracted ope
 cd sa-task-hub
 cp .env.example .env
 # Edit .env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY, FERNET_KEY
+# FERNET_KEY: backend/.venv/bin/python backend/scripts/generate_fernet_key.py
 
 docker compose up --build -d
 # Pull a local model (once):
