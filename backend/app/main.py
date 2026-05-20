@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.v1 import router as api_v1_router
 from app.config import get_settings
@@ -35,6 +36,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Trust X-Forwarded-* from Caddy/nginx so OAuth sees HTTPS callback URLs.
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
     app.include_router(api_v1_router)
     return app
 

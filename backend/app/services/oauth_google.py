@@ -1,6 +1,9 @@
+import os
 from datetime import datetime, timezone
-from urllib.parse import urlencode
+from urllib.parse import urlsplit
 
+import structlog
+from fastapi import Request
 from google_auth_oauthlib.flow import Flow
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.crypto import encrypt_token
 from app.models.oauth_token import OAuthToken
+
+# Google often returns extra scopes (openid, email); avoid token exchange failures.
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "0")
+
+logger = structlog.get_logger()
 
 
 def build_google_flow() -> Flow:
@@ -27,6 +36,14 @@ def build_google_flow() -> Flow:
     )
 
 
+def public_callback_url(request: Request) -> str:
+    """Canonical OAuth callback URL for token exchange (must match Google Console)."""
+    settings = get_settings()
+    query = urlsplit(str(request.url)).query
+    base = settings.google_redirect_uri.rstrip("/")
+    return f"{base}?{query}" if query else base
+
+
 def google_auth_url() -> str:
     flow = build_google_flow()
     auth_url, _ = flow.authorization_url(
@@ -37,16 +54,31 @@ def google_auth_url() -> str:
     return auth_url
 
 
-async def save_google_tokens(session: AsyncSession, code: str) -> None:
+def _credential_expiry(creds) -> datetime | None:
+    expiry = creds.expiry
+    if not expiry:
+        return None
+    if expiry.tzinfo is None:
+        return expiry.replace(tzinfo=timezone.utc)
+    return expiry.astimezone(timezone.utc)
+
+
+async def save_google_tokens(session: AsyncSession, authorization_response: str) -> None:
+    if not authorization_response or "code=" not in authorization_response:
+        raise ValueError("OAuth callback missing authorization code")
+
     flow = build_google_flow()
-    flow.fetch_token(code=code)
+    flow.fetch_token(authorization_response=authorization_response)
     creds = flow.credentials
+    if not creds or not creds.token:
+        raise ValueError("OAuth token exchange returned no access token")
 
     result = await session.execute(
         select(OAuthToken).where(OAuthToken.provider == "google")
     )
     row = result.scalar_one_or_none()
-    expires = creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None
+    expires = _credential_expiry(creds)
+    scope_str = " ".join(creds.scopes or [])
 
     if row:
         row.access_token_enc = encrypt_token(creds.token)
@@ -54,7 +86,7 @@ async def save_google_tokens(session: AsyncSession, code: str) -> None:
             encrypt_token(creds.refresh_token) if creds.refresh_token else row.refresh_token_enc
         )
         row.expires_at = expires
-        row.scopes = " ".join(creds.scopes or [])
+        row.scopes = scope_str
     else:
         session.add(
             OAuthToken(
@@ -62,7 +94,8 @@ async def save_google_tokens(session: AsyncSession, code: str) -> None:
                 access_token_enc=encrypt_token(creds.token),
                 refresh_token_enc=encrypt_token(creds.refresh_token) if creds.refresh_token else None,
                 expires_at=expires,
-                scopes=" ".join(creds.scopes or []),
+                scopes=scope_str,
             )
         )
     await session.flush()
+    logger.info("google_oauth_tokens_saved", scopes=scope_str)

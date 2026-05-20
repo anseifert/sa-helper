@@ -98,6 +98,7 @@ See `.env.example`. No OpenAI/Anthropic or other cloud LLM keys are used anywher
 
 ## Troubleshooting Google sync
 
-- **Drive sync fails (403 / internal error):** Enable **Google Drive API** in the same Google Cloud project as your OAuth client, then in the app use Settings → disconnect/reconnect Google (or revoke the app at [myaccount.google.com/permissions](https://myaccount.google.com/permissions)) so tokens include Drive scope.
-- **Check which connector failed:** `GET /api/v1/sync/status` or the dashboard sync health widget; `drive.error` has the message.
+- **500 on `/api/v1/oauth/google/callback`:** Ensure `.env` has `GOOGLE_REDIRECT_URI=https://your-host/api/v1/oauth/google/callback` (HTTPS, exact match with Google Console). Redeploy backend + frontend after changes. Check logs: `docker compose logs backend --tail=50` for `google_oauth_callback_failed`.
+- **Drive sync fails (403):** Enable **Google Drive API** in the same Google Cloud project as your OAuth client, then reconnect Google in Settings.
+- **Check which connector failed:** `GET /api/v1/sync/status`; `drive.error` has the message (all `never` means OAuth never completed).
 - Set `USER_EMAIL` in `.env` to your Google address so mention filtering works.
