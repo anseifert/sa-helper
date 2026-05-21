@@ -1,11 +1,33 @@
 const API = import.meta.env.VITE_API_URL || "";
 
+export interface AuthStatus {
+  authenticated: boolean;
+  username: string | null;
+}
+
+async function parseError(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const data = JSON.parse(text) as { detail?: string };
+    return data.detail || text || res.statusText;
+  } catch {
+    return text || res.statusText;
+  }
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
+    credentials: "include",
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (res.status === 401 && !path.startsWith("/api/v1/auth/")) {
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+    throw new Error("Not authenticated");
+  }
+  if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
 
@@ -73,9 +95,17 @@ export interface Recommendation {
 export interface Dashboard {
   recommendations: Recommendation[];
   focus_today: Recommendation[];
-  open_tasks_by_company: { company_name: string; count: number }[];
+  open_tasks_by_company: {
+    company_id: number | null;
+    company_name: string;
+    count: number;
+  }[];
   aging_buckets: { label: string; count: number }[];
-  untouched_accounts_30d: { company_name: string }[];
+  untouched_accounts_30d: {
+    company_id: number;
+    company_name: string;
+    last_touch: string | null;
+  }[];
   sync_health: {
     connector: string;
     status: string;
@@ -91,6 +121,14 @@ export interface Settings {
 }
 
 export const api = {
+  authMe: () => fetchJson<AuthStatus>("/api/v1/auth/me"),
+  login: (username: string, password: string) =>
+    fetchJson<AuthStatus>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+  logout: () =>
+    fetchJson<AuthStatus>("/api/v1/auth/logout", { method: "POST" }),
   dashboard: () => fetchJson<Dashboard>("/api/v1/dashboard"),
   tasks: () => fetchJson<TaskGroup[]>("/api/v1/tasks"),
   tasksSummary: () => fetchJson<TasksSummary>("/api/v1/tasks/summary"),

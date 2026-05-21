@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     fernet_key: str = ""  # base64 url-safe 32-byte key; generated on first run if empty
 
+    # App login (required in production — protects UI and API)
+    app_username: str = "admin"
+    app_password: str = ""
+    auth_cookie_secure: bool = False  # set true when served over HTTPS
+
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/v1/oauth/google/callback"

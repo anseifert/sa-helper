@@ -4,6 +4,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session
+from app.auth import require_auth
 from app.config import get_settings
 from app.schemas.common import MessageResponse
 from app.services.oauth_google import google_auth_url, public_callback_url, save_google_tokens
@@ -19,7 +20,7 @@ def _settings_redirect(query: str) -> RedirectResponse:
 
 
 @router.get("/google/authorize")
-async def google_authorize() -> RedirectResponse:
+async def google_authorize(_user: str = Depends(require_auth)) -> RedirectResponse:
     return RedirectResponse(google_auth_url())
 
 
@@ -58,7 +59,10 @@ async def google_callback(
 
 
 @router.get("/google/status", response_model=MessageResponse)
-async def google_status(session: AsyncSession = Depends(get_session)) -> MessageResponse:
+async def google_status(
+    session: AsyncSession = Depends(get_session),
+    _user: str = Depends(require_auth),
+) -> MessageResponse:
     from app.services.google_client import is_google_connected
 
     if await is_google_connected(session):

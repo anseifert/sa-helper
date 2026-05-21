@@ -20,7 +20,7 @@ Greenfield task hub for a single Red Hat Solutions Architect: auto-extracted ope
 ```bash
 cd sa-task-hub
 cp .env.example .env
-# Edit .env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY, FERNET_KEY
+# Edit .env: APP_PASSWORD, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY, FERNET_KEY
 # FERNET_KEY: backend/.venv/bin/python backend/scripts/generate_fernet_key.py
 
 docker compose up --build -d
@@ -32,8 +32,9 @@ docker compose exec ollama ollama pull llama3.2
 - API: http://localhost:8000  
 - Docs: http://localhost:8000/docs  
 
-1. Open **Settings** → **Connect Google** (add redirect URI in Google Cloud console).  
-2. **Run sync now** — populates Tasks, Contacts, Dashboard.  
+1. Sign in at `/login` (credentials from `APP_USERNAME` / `APP_PASSWORD` in `.env`).  
+2. Open **Settings** → **Connect Google** (add redirect URI in Google Cloud console).  
+3. **Run sync now** — populates Tasks, Contacts, Dashboard.  
 
 ## Google OAuth setup
 
@@ -95,6 +96,8 @@ See `deploy/Caddyfile.example` — reverse-proxy `/api` and `/docs` to backend, 
 ## Environment variables
 
 See `.env.example`. No OpenAI/Anthropic or other cloud LLM keys are used anywhere in this repo.
+
+**Login:** Set `APP_PASSWORD` (and optionally `APP_USERNAME`, default `admin`). Use a strong `SECRET_KEY`. For HTTPS deployments set `AUTH_COOKIE_SECURE=true`.
 
 ## Troubleshooting Google sync
 

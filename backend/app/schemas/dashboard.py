@@ -1,12 +1,23 @@
 from pydantic import BaseModel
 
 from app.schemas.recommendation import RecommendationOut
-from app.schemas.task import TaskGroupOut
 
 
 class AgingBucket(BaseModel):
     label: str
     count: int
+
+
+class CompanyTaskCount(BaseModel):
+    company_id: int | None
+    company_name: str
+    count: int
+
+
+class UntouchedAccount(BaseModel):
+    company_id: int
+    company_name: str
+    last_touch: str | None
 
 
 class SyncHealthItem(BaseModel):
@@ -20,7 +31,7 @@ class SyncHealthItem(BaseModel):
 class DashboardOut(BaseModel):
     recommendations: list[RecommendationOut]
     focus_today: list[RecommendationOut]
-    open_tasks_by_company: list[dict]
+    open_tasks_by_company: list[CompanyTaskCount]
     aging_buckets: list[AgingBucket]
-    untouched_accounts_30d: list[dict]
+    untouched_accounts_30d: list[UntouchedAccount]
     sync_health: list[SyncHealthItem]
