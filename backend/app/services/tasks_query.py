@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
-from app.models.company import Company
 from app.models.task import Task
 from app.schemas.task import TaskGroupOut, TaskOut
+from app.utils.priority_accounts import match_priority_account, priority_display_name
 
 
 def _sort_key(task: Task) -> datetime:
@@ -34,7 +34,7 @@ def _task_out(task: Task, company_name: str | None) -> TaskOut:
     )
 
 
-async def list_open_tasks_grouped(session: AsyncSession) -> list[TaskGroupOut]:
+async def list_open_tasks(session: AsyncSession) -> list[TaskOut]:
     settings = get_settings()
     now = datetime.now(timezone.utc)
     window_start = now - timedelta(days=settings.task_window_days)
@@ -50,27 +50,39 @@ async def list_open_tasks_grouped(session: AsyncSession) -> list[TaskGroupOut]:
         )
     )
     tasks = list(result.scalars().all())
-
-    groups: dict[str, TaskGroupOut] = {}
+    out: list[TaskOut] = []
     for task in sorted(tasks, key=_sort_key):
         company = task.company
-        if company:
-            key = company.domain
-            name = company.name
-            cid = company.id
+        cname = company.name if company else None
+        out.append(_task_out(task, cname))
+    return out
+
+
+async def list_open_tasks_grouped(session: AsyncSession) -> list[TaskGroupOut]:
+    groups: dict[str, TaskGroupOut] = {}
+    for task_out in await list_open_tasks(session):
+        priority_key = match_priority_account(
+            company_name=task_out.company_name,
+            title=task_out.title,
+            description=task_out.description,
+        )
+        if priority_key:
+            key = priority_key
+            name = priority_display_name(priority_key)
+        elif task_out.company_name:
+            key = task_out.company_name.lower().replace(" ", "_")
+            name = task_out.company_name
         else:
             key = "_unassigned"
             name = "Unassigned"
-            cid = None
 
         if key not in groups:
             groups[key] = TaskGroupOut(
                 company_key=key,
                 company_name=name,
-                company_id=cid,
+                company_id=task_out.company_id,
                 tasks=[],
             )
-        cname = company.name if company else None
-        groups[key].tasks.append(_task_out(task, cname))
+        groups[key].tasks.append(task_out)
 
     return sorted(groups.values(), key=lambda g: g.company_name.lower())

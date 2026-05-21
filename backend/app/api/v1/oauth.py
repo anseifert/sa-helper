@@ -44,10 +44,12 @@ async def google_callback(
 
     try:
         await save_google_tokens(session, public_callback_url(request))
-    except Exception:
+    except Exception as exc:
         await session.rollback()
         logger.exception(
             "google_oauth_callback_failed",
+            error_type=type(exc).__name__,
+            error=str(exc),
             callback_url=public_callback_url(request).split("code=")[0] + "code=…",
         )
         return _settings_redirect("oauth_error=google")

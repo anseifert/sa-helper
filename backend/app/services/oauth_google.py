@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timezone
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 import structlog
 from fastapi import Request
@@ -17,6 +17,9 @@ os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "0")
 
 logger = structlog.get_logger()
+
+# Google adds extra query params (iss, hd, authuser, …) that can break oauthlib parsing.
+_TOKEN_EXCHANGE_PARAMS = frozenset({"code", "state", "scope"})
 
 
 def build_google_flow() -> Flow:
@@ -39,9 +42,15 @@ def build_google_flow() -> Flow:
 def public_callback_url(request: Request) -> str:
     """Canonical OAuth callback URL for token exchange (must match Google Console)."""
     settings = get_settings()
-    query = urlsplit(str(request.url)).query
+    params = [
+        (key, value)
+        for key, value in request.query_params.multi_items()
+        if key in _TOKEN_EXCHANGE_PARAMS
+    ]
     base = settings.google_redirect_uri.rstrip("/")
-    return f"{base}?{query}" if query else base
+    if not params:
+        return base
+    return f"{base}?{urlencode(params)}"
 
 
 def google_auth_url() -> str:

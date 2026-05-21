@@ -12,12 +12,36 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 export interface Task {
   id: number;
   title: string;
+  description?: string | null;
   task_type: string;
   badge_source: string;
   origin_url: string | null;
   company_name: string | null;
   due_at: string | null;
   created_at: string;
+}
+
+export interface AccountSummary {
+  account_key: string;
+  display_name: string;
+  task_count: number;
+  summary: string;
+  tasks: Task[];
+}
+
+export interface TaskCategory {
+  category: string;
+  label: string;
+  task_count: number;
+  summary: string;
+  tasks: Task[];
+}
+
+export interface TasksSummary {
+  priority_accounts: AccountSummary[];
+  concur: TaskCategory;
+  redhat_direct: TaskCategory;
+  other_accounts: AccountSummary[];
 }
 
 export interface TaskGroup {
@@ -69,6 +93,7 @@ export interface Settings {
 export const api = {
   dashboard: () => fetchJson<Dashboard>("/api/v1/dashboard"),
   tasks: () => fetchJson<TaskGroup[]>("/api/v1/tasks"),
+  tasksSummary: () => fetchJson<TasksSummary>("/api/v1/tasks/summary"),
   contacts: (q?: string, companyId?: number) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);

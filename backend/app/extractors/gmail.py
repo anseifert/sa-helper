@@ -8,7 +8,9 @@ from google.oauth2.credentials import Credentials
 from app.config import get_settings
 from app.extractors.base import BaseExtractor, ExtractedContact, ExtractedTask
 from app.extractors.gmail_patterns import (
+    classify_concur_message,
     classify_gmail_thread,
+    classify_redhat_direct,
     external_participants,
     is_from_user,
     parse_email_date,
@@ -125,6 +127,7 @@ class GmailExtractor(BaseExtractor):
                     int(last.get("internalDate", 0)) / 1000, tz=timezone.utc
                 )
 
+                to_hdr = headers.get("To", "")
                 externals = external_participants(
                     headers, self.user_email, self.user_domain
                 )
@@ -139,6 +142,53 @@ class GmailExtractor(BaseExtractor):
                         )
                         if externals:
                             break
+
+                origin = f"https://mail.google.com/mail/u/0/#inbox/{tid}"
+                now = datetime.now(timezone.utc)
+
+                for task_type, suffix in classify_concur_message(
+                    subject=subject, snippet=snippet, from_header=from_hdr
+                ):
+                    age_days = (now - last_dt).days if last_dt else 0
+                    if age_days >= 7:
+                        task_type = "concur_overdue"
+                        suffix = "Concur / expense overdue"
+                    tasks.append(
+                        ExtractedTask(
+                            source="gmail",
+                            source_id=f"{tid}:{task_type}",
+                            title=f"{subject} — {suffix}",
+                            task_type=task_type,
+                            badge_source="gmail",
+                            description=snippet[:500],
+                            origin_url=origin,
+                            contact_emails=[],
+                            company_domain=None,
+                        )
+                    )
+
+                for task_type, suffix in classify_redhat_direct(
+                    user_email=self.user_email,
+                    from_header=from_hdr,
+                    to_header=to_hdr,
+                    subject=subject,
+                    snippet=snippet,
+                    last_from_user=last_from_user,
+                ):
+                    tasks.append(
+                        ExtractedTask(
+                            source="gmail",
+                            source_id=f"{tid}:{task_type}",
+                            title=f"{subject} — {suffix}",
+                            task_type=task_type,
+                            badge_source="gmail",
+                            description=snippet[:500],
+                            origin_url=origin,
+                            contact_emails=[],
+                            company_domain=None,
+                        )
+                    )
+
                 if not externals:
                     continue
 
@@ -179,8 +229,6 @@ class GmailExtractor(BaseExtractor):
                     if d and d != self.user_domain:
                         company_domain = d
                         break
-
-                origin = f"https://mail.google.com/mail/u/0/#inbox/{tid}"
 
                 for task_type, suffix in classifications:
                     tasks.append(

@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.utils.datetime_util import ensure_utc
 from app.models.company import Company
 from app.models.recommendation import Recommendation
 from app.models.sync_log import SyncLog
@@ -59,7 +60,10 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
     )
     buckets = {"0-7d": 0, "8-14d": 0, "15-30d": 0}
     for t in open_tasks.scalars().all():
-        age = (now - t.created_at).days
+        created = ensure_utc(t.created_at)
+        if not created:
+            continue
+        age = (now - created).days
         if age <= 7:
             buckets["0-7d"] += 1
         elif age <= 14:
@@ -82,9 +86,14 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
         .group_by(Company.id)
     )
     for row in company_last.all():
-        if row.last_touch is None or row.last_touch < now - timedelta(days=30):
+        last_touch = ensure_utc(row.last_touch)
+        if last_touch is None or last_touch < now - timedelta(days=30):
             untouched.append(
-                {"company_id": row.id, "company_name": row.name, "last_touch": row.last_touch}
+                {
+                    "company_id": row.id,
+                    "company_name": row.name,
+                    "last_touch": last_touch.isoformat() if last_touch else None,
+                }
             )
 
     sync_health: list[SyncHealthItem] = []

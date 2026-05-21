@@ -15,6 +15,21 @@ ASK_WORDS = re.compile(
     re.I,
 )
 QUESTION = re.compile(r"\?|^\s*(what|when|where|how|why|who)\b", re.I | re.M)
+CONCUR_WORDS = re.compile(
+    r"\b(concur|sap concur|expense report|payment request|reimbursement|"
+    r"expense approval|approve.{0,20}expense)\b",
+    re.I,
+)
+REDHAT_ACTION = re.compile(
+    r"\b(feedback|action required|please review|your input|respond by|"
+    r"needs your attention|follow up|duty|duties|approval needed|"
+    r"please respond|waiting on you|rsvp)\b",
+    re.I,
+)
+REDHAT_NOISE = re.compile(
+    r"\b(newsletter|digest|all-hands|office hours|webinar|training invite)\b",
+    re.I,
+)
 
 
 def parse_email_date(header_value: str | None) -> datetime | None:
@@ -85,3 +100,33 @@ def classify_gmail_thread(
         results.append(("stale_thread", f"No reply in {stale_days}+ days"))
 
     return results
+
+
+def classify_concur_message(*, subject: str, snippet: str, from_header: str) -> list[tuple[str, str]]:
+    text = f"{subject} {snippet} {from_header}"
+    if not CONCUR_WORDS.search(text):
+        return []
+    return [("concur_payment", "Concur / expense action needed")]
+
+
+def classify_redhat_direct(
+    *,
+    user_email: str,
+    from_header: str,
+    to_header: str,
+    subject: str,
+    snippet: str,
+    last_from_user: bool,
+) -> list[tuple[str, str]]:
+    if last_from_user:
+        return []
+    if "redhat.com" not in (from_header or "").lower():
+        return []
+    if user_email.lower() not in (to_header or "").lower():
+        return []
+    if REDHAT_NOISE.search(f"{subject} {snippet}"):
+        return []
+    text = f"{subject} {snippet}"
+    if REDHAT_ACTION.search(text) or QUESTION.search(snippet) or ASK_WORDS.search(text):
+        return [("redhat_attention", "Red Hat email needs your attention")]
+    return []
