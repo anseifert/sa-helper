@@ -15,6 +15,27 @@ Greenfield task hub for a single Red Hat Solutions Architect: auto-extracted ope
 **Sync:** Hourly APScheduler + `POST /api/v1/sync`  
 **Webhooks:** `POST /api/v1/webhooks/register` (stub delivery logs only)
 
+## Deploy updates to the server
+
+After pulling new code on the server:
+
+```bash
+cd /path/to/sa-helper
+docker compose up -d --build
+```
+
+Verify the new backend is running:
+
+```bash
+curl -s https://sa-hub.digitalgiants.net/api/v1/health
+# Expect JSON with "app_version":"2026.05.21-auth-login" and "auth_enabled":true
+
+curl -s https://sa-hub.digitalgiants.net/api/v1/auth/me
+# Expect {"authenticated":false,"login_configured":true,...}  — NOT {"detail":"Not Found"}
+```
+
+If `auth/me` returns **Not Found**, the backend image was not rebuilt. Run `docker compose build --no-cache backend && docker compose up -d`.
+
 ## Quick start (Docker)
 
 ```bash
