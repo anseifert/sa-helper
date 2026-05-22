@@ -1,24 +1,40 @@
 import { useEffect, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { api, AuthStatus } from "../api";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { api } from "../api";
 
 export default function RequireAuth() {
   const location = useLocation();
-  const [status, setStatus] = useState<AuthStatus | null>(null);
-  const [failed, setFailed] = useState(false);
+  const navigate = useNavigate();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     api
       .authMe()
-      .then(setStatus)
-      .catch(() => setFailed(true));
-  }, []);
+      .then((status) => {
+        if (cancelled) return;
+        if (!status.authenticated) {
+          navigate("/login", {
+            replace: true,
+            state: { from: location.pathname + location.search },
+          });
+          return;
+        }
+        setChecking(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        navigate("/login", {
+          replace: true,
+          state: { from: location.pathname + location.search },
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, location.search, navigate]);
 
-  if (failed || (status && !status.authenticated)) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-
-  if (!status?.authenticated) {
+  if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-500">
         Checking session…

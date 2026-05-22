@@ -32,7 +32,7 @@ docker compose exec ollama ollama pull llama3.2
 - API: http://localhost:8000  
 - Docs: http://localhost:8000/docs  
 
-1. Sign in at `/login` (credentials from `APP_USERNAME` / `APP_PASSWORD` in `.env`).  
+1. Set login in `.env` on the server (`APP_USERNAME=admin`, `APP_PASSWORD=…`), rebuild, then open **`/login`** and sign in with that same username/password (not your Google password).  
 2. Open **Settings** → **Connect Google** (add redirect URI in Google Cloud console).  
 3. **Run sync now** — populates Tasks, Contacts, Dashboard.  
 

@@ -9,3 +9,4 @@ class LoginRequest(BaseModel):
 class AuthStatusOut(BaseModel):
     authenticated: bool
     username: str | None = None
+    login_configured: bool = True

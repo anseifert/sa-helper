@@ -27,22 +27,37 @@ async def login(body: LoginRequest, request: Request) -> AuthStatusOut:
             detail="Invalid username or password",
         )
     login_session(request, body.username)
-    return AuthStatusOut(authenticated=True, username=body.username)
+    return AuthStatusOut(
+        authenticated=True,
+        username=body.username,
+        login_configured=True,
+    )
 
 
 @router.post("/logout", response_model=AuthStatusOut)
 async def logout(request: Request) -> AuthStatusOut:
     logout_session(request)
-    return AuthStatusOut(authenticated=False, username=None)
+    return AuthStatusOut(
+        authenticated=False,
+        username=None,
+        login_configured=bool(get_settings().app_password),
+    )
 
 
 @router.get("/me", response_model=AuthStatusOut)
 async def auth_me(request: Request) -> AuthStatusOut:
+    settings = get_settings()
+    configured = bool(settings.app_password)
     if is_authenticated(request):
         return AuthStatusOut(
             authenticated=True,
             username=str(
-                request.session.get(SESSION_USER_KEY) or get_settings().app_username
+                request.session.get(SESSION_USER_KEY) or settings.app_username
             ),
+            login_configured=configured,
         )
-    return AuthStatusOut(authenticated=False, username=None)
+    return AuthStatusOut(
+        authenticated=False,
+        username=None,
+        login_configured=configured,
+    )

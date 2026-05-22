@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # App login (required in production — protects UI and API)
     app_username: str = "admin"
     app_password: str = ""
-    auth_cookie_secure: bool = False  # set true when served over HTTPS
+    auth_cookie_secure: bool = False  # auto-enabled when frontend_url uses https
 
     google_client_id: str = ""
     google_client_secret: str = ""
@@ -42,3 +42,11 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def cookie_secure(settings: Settings | None = None) -> bool:
+    """Whether session cookies require HTTPS (matches production Caddy TLS)."""
+    s = settings or get_settings()
+    if s.auth_cookie_secure:
+        return True
+    return s.frontend_url.strip().lower().startswith("https://")

@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.v1 import router as api_v1_router
-from app.config import get_settings
+from app.config import cookie_secure, get_settings
 from app.db import init_db
 from app.logging_config import configure_logging
 from app.scheduler import start_scheduler
@@ -45,7 +45,7 @@ def create_app() -> FastAPI:
         session_cookie="sa_task_hub_session",
         max_age=60 * 60 * 24 * 14,  # 14 days
         same_site="lax",
-        https_only=settings.auth_cookie_secure,
+        https_only=cookie_secure(settings),
     )
     app.include_router(api_v1_router)
     return app

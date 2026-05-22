@@ -3,6 +3,7 @@ const API = import.meta.env.VITE_API_URL || "";
 export interface AuthStatus {
   authenticated: boolean;
   username: string | null;
+  login_configured?: boolean;
 }
 
 async function parseError(res: Response): Promise<string> {
