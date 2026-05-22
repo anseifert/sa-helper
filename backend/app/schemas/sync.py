@@ -20,6 +20,12 @@ class SyncResponse(BaseModel):
     stages: list[SyncLogOut]
 
 
+class SyncStartResponse(BaseModel):
+    status: str  # started | already_running
+    message: str
+
+
 class SyncStatusResponse(BaseModel):
     last_sync_at: datetime | None
+    in_progress: bool = False
     connectors: dict[str, dict]

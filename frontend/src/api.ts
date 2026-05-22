@@ -121,6 +121,19 @@ export interface Settings {
   last_sync_at: string | null;
 }
 
+export interface SyncStatus {
+  last_sync_at: string | null;
+  in_progress: boolean;
+  connectors: Record<
+    string,
+    { status: string; records_upserted: number; error: string | null }
+  >;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export const api = {
   authMe: () => fetchJson<AuthStatus>("/api/v1/auth/me"),
   login: (username: string, password: string) =>
@@ -148,7 +161,31 @@ export const api = {
     }),
   enrichContact: (id: number) =>
     fetchJson<Contact>(`/api/v1/contacts/${id}/enrich`, { method: "POST" }),
-  sync: () => fetchJson<{ status: string }>("/api/v1/sync", { method: "POST" }),
+  syncStart: () =>
+    fetchJson<{ status: string; message: string }>("/api/v1/sync", { method: "POST" }),
+  syncStatus: () => fetchJson<SyncStatus>("/api/v1/sync/status"),
+  waitForSync: async (maxWaitMs = 600_000) => {
+    const deadline = Date.now() + maxWaitMs;
+    while (Date.now() < deadline) {
+      const status = await fetchJson<SyncStatus>("/api/v1/sync/status");
+      if (!status.in_progress) return status;
+      await sleep(2000);
+    }
+    throw new Error("Sync is taking longer than expected. Check back in a few minutes.");
+  },
+  /** Start sync in background and poll until finished (avoids gateway timeouts). */
+  sync: async () => {
+    const start = await fetchJson<{ status: string; message: string }>("/api/v1/sync", {
+      method: "POST",
+    });
+    const deadline = Date.now() + 600_000;
+    while (Date.now() < deadline) {
+      const status = await fetchJson<SyncStatus>("/api/v1/sync/status");
+      if (!status.in_progress) return start;
+      await sleep(2000);
+    }
+    throw new Error("Sync is taking longer than expected. Check back in a few minutes.");
+  },
   settings: () => fetchJson<Settings>("/api/v1/settings"),
   health: () => fetchJson<{ status: string; google_connected: boolean }>("/api/v1/health"),
 };

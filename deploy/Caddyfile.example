@@ -5,7 +5,12 @@ example.com {
     encode gzip
 
     handle /api/* {
-        reverse_proxy backend:8000
+        reverse_proxy backend:8000 {
+            transport http {
+                read_timeout 10m
+                write_timeout 10m
+            }
+        }
     }
 
     handle /docs* {

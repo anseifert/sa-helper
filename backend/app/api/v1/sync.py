@@ -1,20 +1,36 @@
-from fastapi import APIRouter, Depends, Query
+from datetime import datetime
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session
 from app.models.setting import Setting
 from app.models.sync_log import SyncLog
-from app.schemas.sync import SyncLogOut, SyncResponse, SyncStatusResponse
-from app.services.sync import run_sync
+from app.schemas.sync import SyncLogOut, SyncStartResponse, SyncStatusResponse
+from app.services.sync_job import run_sync_job, sync_in_progress
 
 router = APIRouter()
 
+_CONNECTORS = (
+    "gmail_contacts",
+    "gmail_tasks",
+    "calendar",
+    "drive",
+    "slack",
+    "recommendations",
+)
 
-@router.post("", response_model=SyncResponse)
-async def trigger_sync(session: AsyncSession = Depends(get_session)) -> SyncResponse:
-    logs = await run_sync(session)
-    return SyncResponse(status="completed", stages=[SyncLogOut.model_validate(l) for l in logs])
+
+@router.post("", response_model=SyncStartResponse, status_code=status.HTTP_202_ACCEPTED)
+async def trigger_sync(background_tasks: BackgroundTasks) -> SyncStartResponse:
+    if sync_in_progress():
+        return SyncStartResponse(status="already_running", message="Sync is already in progress.")
+    background_tasks.add_task(run_sync_job)
+    return SyncStartResponse(
+        status="started",
+        message="Sync started. Poll GET /api/v1/sync/status until in_progress is false.",
+    )
 
 
 @router.get("/logs", response_model=list[SyncLogOut])
@@ -30,13 +46,11 @@ async def sync_logs(
 
 @router.get("/status", response_model=SyncStatusResponse)
 async def sync_status(session: AsyncSession = Depends(get_session)) -> SyncStatusResponse:
-    from datetime import datetime
-
     setting = await session.get(Setting, "last_sync_at")
     last = datetime.fromisoformat(setting.value) if setting else None
 
     connectors: dict[str, dict] = {}
-    for name in ("gmail_contacts", "gmail_tasks", "calendar", "drive", "slack"):
+    for name in _CONNECTORS:
         result = await session.execute(
             select(SyncLog)
             .where(SyncLog.connector == name)
@@ -50,4 +64,8 @@ async def sync_status(session: AsyncSession = Depends(get_session)) -> SyncStatu
             "error": log.error_message if log else None,
         }
 
-    return SyncStatusResponse(last_sync_at=last, connectors=connectors)
+    return SyncStatusResponse(
+        last_sync_at=last,
+        in_progress=sync_in_progress(),
+        connectors=connectors,
+    )

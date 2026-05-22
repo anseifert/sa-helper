@@ -120,6 +120,14 @@ See `.env.example`. No OpenAI/Anthropic or other cloud LLM keys are used anywher
 
 **Login:** Set `APP_PASSWORD` (and optionally `APP_USERNAME`, default `admin`). Use a strong `SECRET_KEY`. For HTTPS deployments set `AUTH_COOKIE_SECURE=true`.
 
+## Troubleshooting sync (504 Gateway Timeout)
+
+Sync can take several minutes. Newer builds return **202 immediately** and run sync in the background; the UI polls until done. If you still see **504** from nginx:
+
+1. Rebuild: `docker compose up -d --build`
+2. If you use **host nginx** in front of Docker, increase `proxy_read_timeout` (e.g. `600s`) for `/api/`
+3. If you use **Caddy**, see `deploy/Caddyfile.example` (`read_timeout 10m`)
+
 ## Troubleshooting Google sync
 
 - **500 on `/api/v1/oauth/google/callback`:** Ensure `.env` has `GOOGLE_REDIRECT_URI=https://your-host/api/v1/oauth/google/callback` (HTTPS, exact match with Google Console). Redeploy backend + frontend after changes. Check logs: `docker compose logs backend --tail=50` for `google_oauth_callback_failed`.

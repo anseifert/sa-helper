@@ -3,8 +3,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import structlog
 
 from app.config import get_settings
-from app.db import get_session_factory, init_db
-from app.services.sync import run_sync
+from app.services.sync_job import run_sync_job
 
 logger = structlog.get_logger()
 scheduler = AsyncIOScheduler()
@@ -12,14 +11,7 @@ scheduler = AsyncIOScheduler()
 
 async def _hourly_sync() -> None:
     logger.info("scheduled_sync_start")
-    factory = get_session_factory()
-    async with factory() as session:
-        try:
-            await run_sync(session)
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            logger.exception("scheduled_sync_failed")
+    await run_sync_job()
 
 
 def start_scheduler() -> None:

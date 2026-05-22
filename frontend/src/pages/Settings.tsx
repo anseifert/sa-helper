@@ -21,13 +21,13 @@ export default function SettingsPage() {
 
   const runSync = async () => {
     setSyncing(true);
-    setMsg(null);
+    setMsg("Sync started — fetching Gmail, Calendar, and Drive (may take a few minutes)…");
     try {
       await api.sync();
       setMsg("Sync completed.");
       await load();
     } catch (e) {
-      setMsg(String(e));
+      setMsg(e instanceof Error ? e.message : String(e));
     } finally {
       setSyncing(false);
     }
