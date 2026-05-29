@@ -4,12 +4,14 @@ from datetime import datetime, timedelta, timezone
 import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.models.company import Company
 from app.models.recommendation import Recommendation
 from app.models.sync_log import SyncLog
-from app.models.task import Task
+from app.models.task import Task, TaskContact
+from app.services.task_exclusions import load_task_exclusions, task_matches_exclusion
 from app.schemas.dashboard import (
     AgingBucket,
     CompanyTaskCount,
@@ -62,10 +64,23 @@ def _iso_or_none(dt: datetime | None) -> str | None:
     return normalized.isoformat() if normalized else None
 
 
+async def _open_tasks_in_window(session: AsyncSession, window_start) -> list[Task]:
+    result = await session.execute(
+        select(Task)
+        .options(
+            selectinload(Task.company),
+            selectinload(Task.contacts).selectinload(TaskContact.contact),
+        )
+        .where(Task.status == "open", Task.created_at >= window_start)
+    )
+    return list(result.scalars().all())
+
+
 async def build_dashboard(session: AsyncSession) -> DashboardOut:
     now = _utc_now()
     settings = get_settings()
     window_start = _sql_cutoff(settings.task_window_days)
+    exclusions = await load_task_exclusions(session)
 
     recommendations: list[RecommendationOut] = []
     focus: list[RecommendationOut] = []
@@ -114,24 +129,12 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
     bucket_map = {b.label: b for b in aging}
 
     try:
-        task_result = await session.execute(
-            select(Task.company_id, func.count(Task.id))
-            .where(Task.status == "open", Task.created_at >= window_start)
-            .group_by(Task.company_id)
-        )
-        open_by_company = [
-            CompanyTaskCount(
-                company_id=cid,
-                company_name=company_names.get(cid, "Unassigned"),
-                count=int(cnt),
-            )
-            for cid, cnt in task_result.all()
-        ]
-
-        open_tasks = await session.execute(
-            select(Task).where(Task.status == "open", Task.created_at >= window_start)
-        )
-        for t in open_tasks.scalars().all():
+        counts_by_company: dict[int | None, int] = {}
+        for t in await _open_tasks_in_window(session, window_start):
+            if task_matches_exclusion(t, exclusions):
+                continue
+            cid = t.company_id
+            counts_by_company[cid] = counts_by_company.get(cid, 0) + 1
             created = ensure_utc(t.created_at)
             if not created:
                 continue
@@ -142,6 +145,18 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
                 bucket_map["8-14d"].count += 1
             else:
                 bucket_map["15-30d"].count += 1
+
+        open_by_company = [
+            CompanyTaskCount(
+                company_id=cid,
+                company_name=company_names.get(cid, "Unassigned"),
+                count=cnt,
+            )
+            for cid, cnt in sorted(
+                counts_by_company.items(),
+                key=lambda item: company_names.get(item[0], "Unassigned").lower(),
+            )
+        ]
     except Exception:
         logger.exception("dashboard_tasks_failed")
 
@@ -215,4 +230,5 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
         aging_buckets=aging,
         untouched_accounts_30d=untouched[:20],
         sync_health=sync_health,
+        task_exclusions=exclusions,
     )

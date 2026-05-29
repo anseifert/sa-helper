@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
-import { api, Dashboard as Dash } from "../api";
+import { useCallback, useEffect, useState } from "react";
+import { api, Dashboard as Dash, TaskExclusions } from "../api";
+import OpenTasksByCompanyWidget from "../components/OpenTasksByCompanyWidget";
 
 export default function DashboardPage() {
   const [data, setData] = useState<Dash | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
     api.dashboard().then(setData).catch((e) => setErr(String(e)));
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   if (err) return <p className="text-red-600">{err}</p>;
   if (!data) return <p className="text-gray-500">Loading…</p>;
@@ -44,16 +49,18 @@ export default function DashboardPage() {
       </section>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Widget title="Open tasks by company">
-          <ul className="text-sm space-y-1">
-            {data.open_tasks_by_company.map((c, i) => (
-              <li key={i} className="flex justify-between">
-                <span>{c.company_name}</span>
-                <span className="font-mono">{c.count}</span>
-              </li>
-            ))}
-          </ul>
-        </Widget>
+        <OpenTasksByCompanyWidget
+          companies={data.open_tasks_by_company}
+          exclusions={
+            data.task_exclusions ?? { emails: [], companies: [] }
+          }
+          onExclusionsChange={(next: TaskExclusions) =>
+            setData((prev) =>
+              prev ? { ...prev, task_exclusions: next } : prev
+            )
+          }
+          onRefresh={loadDashboard}
+        />
         <Widget title="Aging (open tasks)">
           <ul className="text-sm space-y-1">
             {data.aging_buckets.map((b) => (

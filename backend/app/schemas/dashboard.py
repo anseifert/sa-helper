@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 from app.schemas.recommendation import RecommendationOut
+from app.schemas.task_exclusions import TaskExclusionsOut
 
 
 class AgingBucket(BaseModel):
@@ -35,3 +36,4 @@ class DashboardOut(BaseModel):
     aging_buckets: list[AgingBucket]
     untouched_accounts_30d: list[UntouchedAccount]
     sync_health: list[SyncHealthItem]
+    task_exclusions: TaskExclusionsOut

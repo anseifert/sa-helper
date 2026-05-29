@@ -93,6 +93,11 @@ export interface Recommendation {
   rank_score: number;
 }
 
+export interface TaskExclusions {
+  emails: string[];
+  companies: string[];
+}
+
 export interface Dashboard {
   recommendations: Recommendation[];
   focus_today: Recommendation[];
@@ -111,8 +116,10 @@ export interface Dashboard {
     connector: string;
     status: string;
     last_run: string | null;
+    records_upserted?: number;
     error_message: string | null;
   }[];
+  task_exclusions: TaskExclusions;
 }
 
 export interface Settings {
@@ -144,6 +151,11 @@ export const api = {
   logout: () =>
     fetchJson<AuthStatus>("/api/v1/auth/logout", { method: "POST" }),
   dashboard: () => fetchJson<Dashboard>("/api/v1/dashboard"),
+  updateTaskExclusions: (body: TaskExclusions) =>
+    fetchJson<TaskExclusions>("/api/v1/dashboard/exclusions", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   tasks: () => fetchJson<TaskGroup[]>("/api/v1/tasks"),
   tasksSummary: () => fetchJson<TasksSummary>("/api/v1/tasks/summary"),
   contacts: (q?: string, companyId?: number) => {

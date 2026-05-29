@@ -4,7 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session
 from app.schemas.dashboard import DashboardOut
+from app.schemas.task_exclusions import TaskExclusionsOut, TaskExclusionsUpdate
 from app.services.dashboard import build_dashboard
+from app.services.task_exclusions import save_task_exclusions
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -17,3 +19,13 @@ async def dashboard(session: AsyncSession = Depends(get_session)) -> DashboardOu
     except Exception:
         logger.exception("dashboard_endpoint_failed")
         raise
+
+
+@router.put("/exclusions", response_model=TaskExclusionsOut)
+async def update_task_exclusions(
+    body: TaskExclusionsUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> TaskExclusionsOut:
+    out = await save_task_exclusions(session, body)
+    await session.commit()
+    return out
