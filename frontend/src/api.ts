@@ -98,9 +98,20 @@ export interface TaskExclusions {
   companies: string[];
 }
 
+export interface TodayMeeting {
+  event_id: string;
+  title: string;
+  start_at: string;
+  end_at: string | null;
+  external_emails: string[];
+  html_link: string | null;
+}
+
 export interface Dashboard {
   recommendations: Recommendation[];
   focus_today: Recommendation[];
+  today_meetings: TodayMeeting[];
+  today_meetings_error?: string | null;
   open_tasks_by_company: {
     company_id: number | null;
     company_name: string;

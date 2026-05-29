@@ -55,3 +55,4 @@ async def test_build_dashboard_with_naive_datetimes(session: AsyncSession):
     assert len(result.recommendations) == 1
     assert result.open_tasks_by_company[0].company_name == "Exxon"
     assert result.task_exclusions.emails == []
+    assert result.today_meetings == []

@@ -21,6 +21,15 @@ class UntouchedAccount(BaseModel):
     last_touch: str | None
 
 
+class TodayMeetingOut(BaseModel):
+    event_id: str
+    title: str
+    start_at: str
+    end_at: str | None
+    external_emails: list[str]
+    html_link: str | None
+
+
 class SyncHealthItem(BaseModel):
     connector: str
     status: str
@@ -32,6 +41,8 @@ class SyncHealthItem(BaseModel):
 class DashboardOut(BaseModel):
     recommendations: list[RecommendationOut]
     focus_today: list[RecommendationOut]
+    today_meetings: list[TodayMeetingOut]
+    today_meetings_error: str | None = None
     open_tasks_by_company: list[CompanyTaskCount]
     aging_buckets: list[AgingBucket]
     untouched_accounts_30d: list[UntouchedAccount]

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, Dashboard as Dash, TaskExclusions } from "../api";
 import OpenTasksByCompanyWidget from "../components/OpenTasksByCompanyWidget";
+import TodayMeetingsWidget from "../components/TodayMeetingsWidget";
 
 export default function DashboardPage() {
   const [data, setData] = useState<Dash | null>(null);
@@ -19,6 +20,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <TodayMeetingsWidget
+        meetings={data.today_meetings ?? []}
+        error={data.today_meetings_error ?? null}
+      />
+
       <section>
         <h2 className="text-xl font-semibold mb-3">Focus for today</h2>
         {data.focus_today.length === 0 ? (

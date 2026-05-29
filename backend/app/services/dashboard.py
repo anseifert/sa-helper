@@ -11,12 +11,14 @@ from app.models.company import Company
 from app.models.recommendation import Recommendation
 from app.models.sync_log import SyncLog
 from app.models.task import Task, TaskContact
+from app.services.calendar_today import fetch_today_external_meetings
 from app.services.task_exclusions import load_task_exclusions, task_matches_exclusion
 from app.schemas.dashboard import (
     AgingBucket,
     CompanyTaskCount,
     DashboardOut,
     SyncHealthItem,
+    TodayMeetingOut,
     UntouchedAccount,
 )
 from app.schemas.recommendation import RecommendationOut
@@ -81,6 +83,14 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
     settings = get_settings()
     window_start = _sql_cutoff(settings.task_window_days)
     exclusions = await load_task_exclusions(session)
+
+    today_meetings: list[TodayMeetingOut] = []
+    today_meetings_error: str | None = None
+    try:
+        today_meetings, today_meetings_error = await fetch_today_external_meetings(session)
+    except Exception:
+        logger.exception("dashboard_today_meetings_failed")
+        today_meetings_error = "Could not load today's calendar."
 
     recommendations: list[RecommendationOut] = []
     focus: list[RecommendationOut] = []
@@ -226,6 +236,8 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
     return DashboardOut(
         recommendations=recommendations,
         focus_today=focus,
+        today_meetings=today_meetings,
+        today_meetings_error=today_meetings_error,
         open_tasks_by_company=open_by_company,
         aging_buckets=aging,
         untouched_accounts_30d=untouched[:20],

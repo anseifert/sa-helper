@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     task_window_days: int = 30
     stale_thread_days: int = 7
     user_email: str = ""  # SA user email for internal/external classification
+    user_timezone: str = "America/New_York"  # "Today" calendar window for dashboard
 
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"

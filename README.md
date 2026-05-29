@@ -36,6 +36,31 @@ curl -s https://sa-hub.digitalgiants.net/api/v1/auth/me
 
 If `auth/me` returns **Not Found**, the backend image was not rebuilt. Run `docker compose build --no-cache backend && docker compose up -d`.
 
+### Podman: UI or API still looks old after `podman compose up -d --build`
+
+Usually **not** a browser problem until the server is actually running new images. Check in this order:
+
+1. **Confirm code on the machine you build** — `git pull` in the repo directory before compose.
+2. **Backend version (definitive)** — on the same host/URL you use in the browser:
+   ```bash
+   curl -s http://localhost:8000/api/v1/health
+   # or https://sa-hub.digitalgiants.net/api/v1/health
+   ```
+   Compare `app_version` in JSON to what you expect. Old version → **build/deploy** (image cache, wrong host, or compose run from another checkout).
+3. **Force a real rebuild** (Podman often reuses layers):
+   ```bash
+   podman compose build --no-cache frontend backend
+   podman compose up -d --force-recreate
+   ```
+4. **`.env` changes** — editing `.env` does not update running containers until recreate:
+   ```bash
+   podman compose up -d --force-recreate
+   ```
+   (Rebuild is only needed for code/Dockerfile changes.)
+5. **Browser** — if `app_version` is new but the UI is missing widgets, hard refresh (Cmd+Shift+R) or a private window. Frontend is static files baked into the `frontend` image; nginx now sends `no-cache` on `index.html` after you rebuild the frontend image.
+
+6. **Wrong target** — building on your laptop but opening production (or the reverse). Build and curl health on the **same** machine/URL you browse.
+
 ## Quick start (Docker)
 
 ```bash
