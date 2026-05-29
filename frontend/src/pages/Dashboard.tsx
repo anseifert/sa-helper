@@ -77,19 +77,26 @@ export default function DashboardPage() {
         <Widget title="Sync health">
           <ul className="text-xs space-y-1">
             {data.sync_health.map((s) => (
-              <li key={s.connector} className="flex justify-between gap-2">
-                <span className="truncate">{s.connector}</span>
-                <span
-                  className={
-                    s.status === "success"
-                      ? "text-green-700"
-                      : s.status === "error"
-                        ? "text-red-700"
-                        : "text-gray-500"
-                  }
-                >
-                  {s.status}
-                </span>
+              <li key={s.connector} className="border-b border-gray-100 pb-1 last:border-0">
+                <div className="flex justify-between gap-2">
+                  <span className="truncate">{s.connector}</span>
+                  <span
+                    className={
+                      s.status === "success"
+                        ? "text-green-700"
+                        : s.status === "error"
+                          ? "text-red-700"
+                          : "text-gray-500"
+                    }
+                  >
+                    {s.status}
+                  </span>
+                </div>
+                {s.status === "error" && s.error_message && (
+                  <p className="text-red-600 mt-0.5 line-clamp-3" title={s.error_message}>
+                    {s.error_message}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

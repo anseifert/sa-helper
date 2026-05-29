@@ -63,7 +63,10 @@ async def _run_extractor_stage(
         return await _log_stage(session, connector, "success", started, count)
     except Exception as e:
         logger.exception("sync_stage_failed", connector=connector)
-        return await _log_stage(session, connector, "error", started, count, str(e))
+        msg = str(e).strip() or repr(e)
+        if len(msg) > 2000:
+            msg = msg[:2000] + "…"
+        return await _log_stage(session, connector, "error", started, count, msg)
 
 
 async def run_sync(session: AsyncSession) -> list[SyncLog]:

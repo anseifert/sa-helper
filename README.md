@@ -63,7 +63,7 @@ docker compose exec ollama ollama pull llama3.2
 2. Credentials → OAuth client (Web).  
 3. Authorized redirect URI: value of `GOOGLE_REDIRECT_URI` (default `http://localhost:8000/api/v1/oauth/google/callback`).  
 4. Scopes: Gmail readonly, Calendar readonly, Drive readonly (configured in `.env`).
-5. APIs & Services → **Library** → enable **Google Drive API** (required for sync; without it Drive returns 403).
+5. APIs & Services → **Library** → enable **Google Calendar API** and **Google Drive API** (required for sync; without them those connectors show `error`).
 
 ## Local development
 

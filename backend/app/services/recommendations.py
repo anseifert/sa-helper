@@ -5,10 +5,10 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
-from app.models.contact import Contact
 from app.models.recommendation import Recommendation
 from app.models.task import Task
 from app.services.ollama import polish_recommendation
+from app.utils.datetime_util import ensure_utc
 
 logger = structlog.get_logger()
 
@@ -117,9 +117,10 @@ async def rebuild_recommendations(session: AsyncSession) -> int:
         .join(Task, Task.company_id == Company.id, isouter=True)
         .group_by(Company.id)
     )
+    cutoff = now - timedelta(days=30)
     for row in company_last.all():
-        last = row.last_touch
-        if last is None or last < now - timedelta(days=30):
+        last = ensure_utc(row.last_touch)
+        if last is None or last < cutoff:
             recs.append(
                 Recommendation(
                     rec_type="untouched_account",
@@ -136,9 +137,12 @@ async def rebuild_recommendations(session: AsyncSession) -> int:
 
     for r in top:
         if r.body:
-            polished = await polish_recommendation(r.title, r.body or "")
-            if polished:
-                r.body = polished
+            try:
+                polished = await polish_recommendation(r.title, r.body or "")
+                if polished:
+                    r.body = polished
+            except Exception:
+                logger.warning("recommendation_polish_skipped", title=r.title[:80], exc_info=True)
         session.add(r)
 
     focus = top[:5]
