@@ -168,6 +168,8 @@ export interface Settings {
   google_connected: boolean;
   slack_configured: boolean;
   last_sync_at: string | null;
+  user_email?: string | null;
+  onboarding_complete: boolean;
 }
 
 export interface SyncStatus {

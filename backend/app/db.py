@@ -47,9 +47,14 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(_migrate_contacts_is_ignored)
-    async with factory() as session:
-        await seed_asset_companies(session)
-        await session.commit()
+    try:
+        async with factory() as session:
+            await seed_asset_companies(session)
+            await session.commit()
+    except Exception:
+        import structlog
+
+        structlog.get_logger().exception("seed_asset_companies_failed")
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

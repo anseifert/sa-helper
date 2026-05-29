@@ -1,22 +1,76 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, Dashboard as Dash, TaskExclusions } from "../api";
+import OnboardingSplash from "../components/OnboardingSplash";
 import OpenTasksByCompanyWidget from "../components/OpenTasksByCompanyWidget";
 import TodayMeetingsWidget from "../components/TodayMeetingsWidget";
 
 export default function DashboardPage() {
+  const [onboarding, setOnboarding] = useState<{
+    google_connected: boolean;
+    last_sync_at: string | null;
+    onboarding_complete: boolean;
+  } | null>(null);
   const [data, setData] = useState<Dash | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
-  const loadDashboard = useCallback(() => {
-    api.dashboard().then(setData).catch((e) => setErr(String(e)));
+  const loadSettings = useCallback(() => {
+    return api.settings().then((s) => {
+      setOnboarding({
+        google_connected: s.google_connected,
+        last_sync_at: s.last_sync_at,
+        onboarding_complete: s.onboarding_complete,
+      });
+      return s;
+    });
   }, []);
 
+  const loadDashboard = useCallback(() => {
+    return api.dashboard().then(setData).catch((e) => setErr(String(e)));
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setErr(null);
+    setChecking(true);
+    try {
+      const s = await loadSettings();
+      if (s.onboarding_complete) {
+        await loadDashboard();
+      } else {
+        setData(null);
+      }
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setChecking(false);
+    }
+  }, [loadSettings, loadDashboard]);
+
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    void refresh();
+  }, [refresh]);
+
+  if (!onboarding && !err) {
+    return <p className="text-gray-500">Loading…</p>;
+  }
+
+  if (err && !onboarding) {
+    return <p className="text-red-600">{err}</p>;
+  }
+
+  if (onboarding && !onboarding.onboarding_complete) {
+    return (
+      <OnboardingSplash
+        googleConnected={onboarding.google_connected}
+        hasSynced={!!onboarding.last_sync_at}
+        onCheckAgain={refresh}
+        checking={checking}
+      />
+    );
+  }
 
   if (err) return <p className="text-red-600">{err}</p>;
-  if (!data) return <p className="text-gray-500">Loading…</p>;
+  if (!data) return <p className="text-gray-500">Loading dashboard…</p>;
 
   return (
     <div className="space-y-8">
@@ -57,13 +111,9 @@ export default function DashboardPage() {
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         <OpenTasksByCompanyWidget
           companies={data.open_tasks_by_company}
-          exclusions={
-            data.task_exclusions ?? { emails: [], companies: [] }
-          }
+          exclusions={data.task_exclusions ?? { emails: [], companies: [] }}
           onExclusionsChange={(next: TaskExclusions) =>
-            setData((prev) =>
-              prev ? { ...prev, task_exclusions: next } : prev
-            )
+            setData((prev) => (prev ? { ...prev, task_exclusions: next } : prev))
           }
           onRefresh={loadDashboard}
         />

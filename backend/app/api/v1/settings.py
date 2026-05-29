@@ -19,6 +19,7 @@ class SettingsOut(BaseModel):
     slack_configured: bool
     last_sync_at: str | None
     user_email: str | None
+    onboarding_complete: bool = False
 
 
 @router.get("", response_model=SettingsOut)
@@ -30,9 +31,12 @@ async def get_app_settings(session: AsyncSession = Depends(get_session)) -> Sett
         select(Setting).where(Setting.key.in_(PUBLIC_KEYS))
     )
     kv = {r.key: r.value for r in result.scalars().all()}
+    google_connected = await is_google_connected(session)
+    last_sync_at = kv.get("last_sync_at")
     return SettingsOut(
-        google_connected=await is_google_connected(session),
+        google_connected=google_connected,
         slack_configured=bool(settings.slack_bot_token),
-        last_sync_at=kv.get("last_sync_at"),
+        last_sync_at=last_sync_at,
         user_email=kv.get("user_email") or settings.user_email or None,
+        onboarding_complete=bool(google_connected and last_sync_at),
     )

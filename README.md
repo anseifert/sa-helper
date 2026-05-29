@@ -6,7 +6,7 @@ Greenfield task hub for a single Red Hat Solutions Architect: auto-extracted ope
 
 | Area | Route | Description |
 |------|-------|-------------|
-| Dashboard | `/` | Top recommendations, focus-for-today (≤5), widgets (aging, companies, sync health) |
+| Dashboard | `/` | Onboarding splash until Google is connected and first sync completes; then widgets & recommendations |
 | Tasks | `/tasks` | Open tasks (30d window), grouped by company, source badge + origin link |
 | Contacts | `/contacts` | Gmail addresses, search/filter, company override, ignore, Ollama enrich |
 | Assets | `/assets` | Subscriptions & hardware per company (from existing companies in the app) |

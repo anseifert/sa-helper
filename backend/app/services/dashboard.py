@@ -21,8 +21,9 @@ from app.schemas.dashboard import (
     TodayMeetingOut,
     UntouchedAccount,
 )
+from app.schemas.task_exclusions import TaskExclusionsOut
 from app.schemas.recommendation import RecommendationOut
-from app.utils.datetime_util import ensure_utc
+from app.utils.datetime_util import ensure_utc, sql_utc_days_ago
 from app.utils.priority_accounts import tasks_section_id_for_company
 
 logger = structlog.get_logger()
@@ -77,6 +78,24 @@ async def _open_tasks_in_window(session: AsyncSession, window_start) -> list[Tas
         .where(Task.status == "open", Task.created_at >= window_start)
     )
     return list(result.scalars().all())
+
+
+def empty_dashboard(exclusions: TaskExclusionsOut | None = None) -> DashboardOut:
+    return DashboardOut(
+        recommendations=[],
+        focus_today=[],
+        today_meetings=[],
+        today_meetings_error=None,
+        open_tasks_by_company=[],
+        aging_buckets=[
+            AgingBucket(label="0-7d", count=0),
+            AgingBucket(label="8-14d", count=0),
+            AgingBucket(label="15-30d", count=0),
+        ],
+        untouched_accounts_30d=[],
+        sync_health=[],
+        task_exclusions=exclusions or TaskExclusionsOut(),
+    )
 
 
 async def build_dashboard(session: AsyncSession) -> DashboardOut:
@@ -181,9 +200,11 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
             .join(Task, Task.company_id == Company.id, isouter=True)
             .group_by(Company.id)
         )
-        cutoff = now - timedelta(days=30)
+        cutoff = sql_utc_days_ago(30)
         for row in company_last.all():
-            last_touch = ensure_utc(row.last_touch)
+            last_touch = row.last_touch
+            if last_touch is not None and last_touch.tzinfo is not None:
+                last_touch = last_touch.replace(tzinfo=None)
             if last_touch is None or last_touch < cutoff:
                 untouched.append(
                     UntouchedAccount(
