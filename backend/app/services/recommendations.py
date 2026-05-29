@@ -6,7 +6,7 @@ from app.models.company import Company
 from app.models.recommendation import Recommendation
 from app.models.task import Task
 from app.services.ollama import polish_recommendation
-from app.utils.datetime_util import sql_utc_days_ago, sql_utc_now
+from app.utils.datetime_util import as_sqlite_utc, sql_utc_days_ago, sql_utc_now
 
 logger = structlog.get_logger()
 
@@ -29,13 +29,12 @@ async def rebuild_recommendations(session: AsyncSession) -> int:
     recs: list[Recommendation] = []
 
     overdue = await session.execute(
-        select(Task).where(
-            Task.status == "open",
-            Task.due_at.isnot(None),
-            Task.due_at < now,
-        )
+        select(Task).where(Task.status == "open", Task.due_at.isnot(None))
     )
     for t in overdue.scalars().all():
+        due = as_sqlite_utc(t.due_at)
+        if due is None or due >= now:
+            continue
         recs.append(
             Recommendation(
                 rec_type="overdue_followup",
@@ -52,10 +51,12 @@ async def rebuild_recommendations(session: AsyncSession) -> int:
         select(Task).where(
             Task.status == "open",
             Task.task_type == "stale_thread",
-            Task.created_at >= window,
         )
     )
     for t in stale.scalars().all():
+        created = as_sqlite_utc(t.created_at)
+        if created is None or created < window:
+            continue
         recs.append(
             Recommendation(
                 rec_type="stale_thread",
@@ -117,9 +118,7 @@ async def rebuild_recommendations(session: AsyncSession) -> int:
     )
     cutoff = window
     for row in company_last.all():
-        last = row.last_touch
-        if last is not None and last.tzinfo is not None:
-            last = last.replace(tzinfo=None)
+        last = as_sqlite_utc(row.last_touch)
         if last is None or last < cutoff:
             recs.append(
                 Recommendation(

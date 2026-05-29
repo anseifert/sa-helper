@@ -86,11 +86,7 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
 
     today_meetings: list[TodayMeetingOut] = []
     today_meetings_error: str | None = None
-    try:
-        today_meetings, today_meetings_error = await fetch_today_external_meetings(session)
-    except Exception:
-        logger.exception("dashboard_today_meetings_failed")
-        today_meetings_error = "Could not load today's calendar."
+    today_meetings, today_meetings_error = await fetch_today_external_meetings(session)
 
     recommendations: list[RecommendationOut] = []
     focus: list[RecommendationOut] = []

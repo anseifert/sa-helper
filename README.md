@@ -28,7 +28,7 @@ Verify the new backend is running:
 
 ```bash
 curl -s https://sa-hub.digitalgiants.net/api/v1/health
-# Expect JSON with "app_version":"2026.05.22-recommendations-fix" (or newer) and "auth_enabled":true
+# Expect JSON with "app_version":"2026.05.22-recommendations-datetime" (or newer) and "auth_enabled":true
 
 curl -s https://sa-hub.digitalgiants.net/api/v1/auth/me
 # Expect {"authenticated":false,"login_configured":true,...}  — NOT {"detail":"Not Found"}
@@ -153,13 +153,24 @@ Sync can take several minutes. Newer builds return **202 immediately** and run s
 2. If you use **host nginx** in front of Docker, increase `proxy_read_timeout` (e.g. `600s`) for `/api/`
 3. If you use **Caddy**, see `deploy/Caddyfile.example` (`read_timeout 10m`)
 
+## Troubleshooting “Could not load today's calendar” on the dashboard
+
+**Sync health `calendar: success`** only means the **sync job** read the calendar for tasks. The **Today's meetings** widget calls the Calendar API again when you open the dashboard.
+
+Common causes:
+
+- **Missing timezone data in the backend container** — the widget uses `USER_TIMEZONE` (default `America/New_York`). Slim Python images need the `tzdata` package (included in recent `backend/Dockerfile`). Rebuild: `podman compose build --no-cache backend && podman compose up -d --force-recreate`.
+- **Invalid `USER_TIMEZONE`** — must be an IANA name (e.g. `America/Chicago`), not `EST` or `EDT`.
+- **No external meetings today** — internal-only `@redhat.com` meetings are hidden on purpose; you should see “No external meetings…” with **no** error line.
+- After deploy, `curl -s …/api/v1/health` should show `app_version` `2026.05.22-calendar-today-tz` or newer.
+
 ## Troubleshooting recommendations sync (`error`)
 
 On the dashboard **Sync health** row, expand the red text under `recommendations` — that is the real error from the last sync.
 
 Common causes:
 
-- **Datetime mismatch (SQLite)** — fixed in builds with `app_version` `2026.05.22-recommendations-fix` or newer. Rebuild backend: `podman compose build --no-cache backend && podman compose up -d --force-recreate`.
+- **`can't compare offset-naive and offset-aware datetimes`** — calendar tasks store timezone-aware `due_at` values; older recommendation code compared them in SQL. Fixed in `app_version` `2026.05.22-recommendations-datetime` or newer. Rebuild backend: `podman compose build --no-cache backend && podman compose up -d --force-recreate`.
 - **Ollama** — optional polish only; failures are skipped and should not fail sync. If you still see errors on an old image, redeploy as above.
 - After a successful sync, run **Sync now** again; `recommendations` should show `success`.
 

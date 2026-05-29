@@ -41,6 +41,34 @@ async def test_rebuild_recommendations_with_naive_task_dates():
 
 
 @pytest.mark.asyncio
+async def test_rebuild_recommendations_overdue_aware_due_at():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    aware_due = datetime(2020, 6, 1, tzinfo=timezone.utc)
+    async with factory() as session:
+        session.add(
+            Task(
+                source="calendar",
+                source_id="due-aware",
+                title="Past meeting",
+                task_type="schedule_meeting",
+                badge_source="calendar",
+                due_at=aware_due,
+                created_at=datetime(2026, 5, 1),
+                updated_at=datetime(2026, 5, 1),
+            )
+        )
+        await session.commit()
+
+    async with factory() as session:
+        count = await rebuild_recommendations(session)
+        await session.commit()
+        assert count >= 1
+
+
+@pytest.mark.asyncio
 async def test_rebuild_recommendations_overdue_naive_due_at():
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
