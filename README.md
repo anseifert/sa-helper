@@ -28,7 +28,7 @@ Verify the new backend is running:
 
 ```bash
 curl -s https://sa-hub.digitalgiants.net/api/v1/health
-# Expect JSON with "app_version":"2026.05.21-auth-login" and "auth_enabled":true
+# Expect JSON with "app_version":"2026.05.22-recommendations-fix" (or newer) and "auth_enabled":true
 
 curl -s https://sa-hub.digitalgiants.net/api/v1/auth/me
 # Expect {"authenticated":false,"login_configured":true,...}  — NOT {"detail":"Not Found"}
@@ -152,6 +152,21 @@ Sync can take several minutes. Newer builds return **202 immediately** and run s
 1. Rebuild: `docker compose up -d --build`
 2. If you use **host nginx** in front of Docker, increase `proxy_read_timeout` (e.g. `600s`) for `/api/`
 3. If you use **Caddy**, see `deploy/Caddyfile.example` (`read_timeout 10m`)
+
+## Troubleshooting recommendations sync (`error`)
+
+On the dashboard **Sync health** row, expand the red text under `recommendations` — that is the real error from the last sync.
+
+Common causes:
+
+- **Datetime mismatch (SQLite)** — fixed in builds with `app_version` `2026.05.22-recommendations-fix` or newer. Rebuild backend: `podman compose build --no-cache backend && podman compose up -d --force-recreate`.
+- **Ollama** — optional polish only; failures are skipped and should not fail sync. If you still see errors on an old image, redeploy as above.
+- After a successful sync, run **Sync now** again; `recommendations` should show `success`.
+
+```bash
+curl -s http://localhost:8000/api/v1/health | grep app_version
+curl -s http://localhost:8000/api/v1/sync/status
+```
 
 ## Troubleshooting Google sync
 

@@ -38,3 +38,30 @@ async def test_rebuild_recommendations_with_naive_task_dates():
         count = await rebuild_recommendations(session)
         await session.commit()
         assert count >= 0
+
+
+@pytest.mark.asyncio
+async def test_rebuild_recommendations_overdue_naive_due_at():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        session.add(
+            Task(
+                source="calendar",
+                source_id="due1",
+                title="Past meeting",
+                task_type="schedule_meeting",
+                badge_source="calendar",
+                due_at=datetime(2020, 6, 1),
+                created_at=datetime(2026, 5, 1),
+                updated_at=datetime(2026, 5, 1),
+            )
+        )
+        await session.commit()
+
+    async with factory() as session:
+        count = await rebuild_recommendations(session)
+        await session.commit()
+        assert count >= 1

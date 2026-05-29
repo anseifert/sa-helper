@@ -119,11 +119,20 @@ async def run_sync(session: AsyncSession) -> list[SyncLog]:
 
     started = datetime.now(timezone.utc)
     try:
-        await rebuild_recommendations(session)
-        logs.append(await _log_stage(session, "recommendations", "success", started, 1))
-        await emit_event(session, "recommendations.updated", {})
+        count = await rebuild_recommendations(session)
+        logs.append(
+            await _log_stage(session, "recommendations", "success", started, max(count, 0))
+        )
+        try:
+            await emit_event(session, "recommendations.updated", {})
+        except Exception:
+            logger.warning("recommendations_webhook_emit_failed", exc_info=True)
     except Exception as e:
-        logs.append(await _log_stage(session, "recommendations", "error", started, 0, str(e)))
+        logger.exception("sync_stage_failed", connector="recommendations")
+        msg = str(e).strip() or repr(e)
+        if len(msg) > 2000:
+            msg = msg[:2000] + "…"
+        logs.append(await _log_stage(session, "recommendations", "error", started, 0, msg))
 
     now_iso = datetime.now(timezone.utc).isoformat()
     setting = await session.get(Setting, "last_sync_at")

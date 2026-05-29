@@ -29,7 +29,11 @@ async def emit_event(session: AsyncSession, event: str, payload: dict) -> None:
     row = result.scalar_one_or_none()
     if not row:
         return
-    regs = json.loads(row.value)
+    try:
+        regs = json.loads(row.value)
+    except json.JSONDecodeError:
+        logger.warning("webhook_registrations_invalid_json")
+        return
     for reg in regs:
         if event in reg.get("events", []):
             logger.info(

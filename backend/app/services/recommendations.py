@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta, timezone
-
 import structlog
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +6,7 @@ from app.models.company import Company
 from app.models.recommendation import Recommendation
 from app.models.task import Task
 from app.services.ollama import polish_recommendation
-from app.utils.datetime_util import ensure_utc
+from app.utils.datetime_util import sql_utc_days_ago, sql_utc_now
 
 logger = structlog.get_logger()
 
@@ -23,8 +21,8 @@ TYPE_SCORES = {
 
 
 async def rebuild_recommendations(session: AsyncSession) -> int:
-    now = datetime.now(timezone.utc)
-    window = now - timedelta(days=30)
+    now = sql_utc_now()
+    window = sql_utc_days_ago(30)
 
     await session.execute(update(Recommendation).values(is_active=False))
 
@@ -117,14 +115,16 @@ async def rebuild_recommendations(session: AsyncSession) -> int:
         .join(Task, Task.company_id == Company.id, isouter=True)
         .group_by(Company.id)
     )
-    cutoff = now - timedelta(days=30)
+    cutoff = window
     for row in company_last.all():
-        last = ensure_utc(row.last_touch)
+        last = row.last_touch
+        if last is not None and last.tzinfo is not None:
+            last = last.replace(tzinfo=None)
         if last is None or last < cutoff:
             recs.append(
                 Recommendation(
                     rec_type="untouched_account",
-                    title=f"Account quiet 30+ days: {row.name}",
+                    title=f"Account quiet 30+ days: {row.name or 'Unknown'}",
                     body="No recent task activity",
                     rank_score=TYPE_SCORES["untouched_account"],
                     company_id=row.id,
