@@ -8,7 +8,8 @@ Greenfield task hub for a single Red Hat Solutions Architect: auto-extracted ope
 |------|-------|-------------|
 | Dashboard | `/` | Top recommendations, focus-for-today (≤5), widgets (aging, companies, sync health) |
 | Tasks | `/tasks` | Open tasks (30d window), grouped by company, source badge + origin link |
-| Contacts | `/contacts` | Gmail addresses, search/filter, company override, Ollama enrich |
+| Contacts | `/contacts` | Gmail addresses, search/filter, company override, ignore, Ollama enrich |
+| Assets | `/assets` | Subscriptions & hardware per company (from existing companies in the app) |
 | Settings | `/settings` | Google OAuth, manual sync, Slack stub status |
 
 **API:** `REST /api/v1/*` — OpenAPI at `/docs`  

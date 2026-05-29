@@ -13,6 +13,7 @@ class ContactOut(BaseModel):
     company_name: str | None = None
     company_override: str | None
     is_internal: bool
+    is_ignored: bool = False
     title: str | None
     notes: str | None
     source: str
@@ -23,3 +24,4 @@ class ContactOut(BaseModel):
 class ContactUpdate(BaseModel):
     company_override: str | None = None
     company_id: int | None = None
+    is_ignored: bool | None = None

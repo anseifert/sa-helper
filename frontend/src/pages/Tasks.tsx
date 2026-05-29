@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Badge from "../components/Badge";
 import { api, Task, TasksSummary } from "../api";
 
@@ -33,20 +34,26 @@ function TaskRow({ t }: { t: Task }) {
 }
 
 function TaskSection({
+  sectionId,
   title,
   summary,
   tasks,
-  defaultOpen = true,
+  expanded,
 }: {
+  sectionId: string;
   title: string;
   summary: string;
   tasks: Task[];
-  defaultOpen?: boolean;
+  expanded: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(expanded);
+  useEffect(() => {
+    if (expanded) setOpen(true);
+  }, [expanded]);
+
   if (tasks.length === 0) return null;
   return (
-    <section className="border rounded-lg bg-gray-50/80">
+    <section id={`section-${sectionId}`} className="border rounded-lg bg-gray-50/80 scroll-mt-4">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -72,6 +79,8 @@ function TaskSection({
 }
 
 export default function Tasks() {
+  const [searchParams] = useSearchParams();
+  const highlightSection = searchParams.get("section");
   const [data, setData] = useState<TasksSummary | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [showOther, setShowOther] = useState(false);
@@ -80,11 +89,30 @@ export default function Tasks() {
     api.tasksSummary().then(setData).catch((e) => setErr(String(e)));
   }, []);
 
+  useEffect(() => {
+    if (!data || !highlightSection) return;
+    if (data.other_accounts.some((a) => a.account_key === highlightSection)) {
+      setShowOther(true);
+    }
+  }, [data, highlightSection]);
+
+  useEffect(() => {
+    if (!data || !highlightSection) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(`section-${highlightSection}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [data, highlightSection, showOther]);
+
   if (err) return <p className="text-red-600">{err}</p>;
   if (!data) return <p className="text-gray-500">Loading…</p>;
 
   const priorityWithWork = data.priority_accounts.filter((a) => a.task_count > 0);
   const totalPriority = priorityWithWork.reduce((n, a) => n + a.task_count, 0);
+  const isExpanded = (sectionId: string) => highlightSection === sectionId;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -117,22 +145,28 @@ export default function Tasks() {
       {priorityWithWork.map((account) => (
         <TaskSection
           key={account.account_key}
+          sectionId={account.account_key}
           title={account.display_name}
           summary={account.summary}
           tasks={account.tasks}
+          expanded={isExpanded(account.account_key)}
         />
       ))}
 
       <TaskSection
+        sectionId="concur"
         title={data.concur.label}
         summary={data.concur.summary}
         tasks={data.concur.tasks}
+        expanded={isExpanded("concur")}
       />
 
       <TaskSection
+        sectionId="redhat_direct"
         title={data.redhat_direct.label}
         summary={data.redhat_direct.summary}
         tasks={data.redhat_direct.tasks}
+        expanded={isExpanded("redhat_direct")}
       />
 
       {data.other_accounts.length > 0 && (
@@ -149,10 +183,11 @@ export default function Tasks() {
               {data.other_accounts.map((account) => (
                 <TaskSection
                   key={account.account_key}
+                  sectionId={account.account_key}
                   title={account.display_name}
                   summary={account.summary}
                   tasks={account.tasks}
-                  defaultOpen={false}
+                  expanded={isExpanded(account.account_key)}
                 />
               ))}
             </div>

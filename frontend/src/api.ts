@@ -81,6 +81,7 @@ export interface Contact {
   company_name: string | null;
   company_override: string | null;
   is_internal: boolean;
+  is_ignored?: boolean;
   title: string | null;
   notes: string | null;
 }
@@ -115,6 +116,7 @@ export interface Dashboard {
   open_tasks_by_company: {
     company_id: number | null;
     company_name: string;
+    section_id: string;
     count: number;
   }[];
   aging_buckets: { label: string; count: number }[];
@@ -132,6 +134,35 @@ export interface Dashboard {
   }[];
   task_exclusions: TaskExclusions;
 }
+
+export interface AssetsCatalog {
+  subscriptions: { key: string; label: string }[];
+  hardware: { key: string; label: string }[];
+}
+
+export interface AssetCompany {
+  company_id: number;
+  company_name: string;
+  company_domain: string;
+  subscriptions: Record<string, boolean>;
+  hardware: Record<string, boolean>;
+  ansible_nodes: number;
+  rhel_subscriptions: number;
+}
+
+export interface AvailableCompany {
+  id: number;
+  name: string;
+  domain: string;
+}
+
+export type AssetCompanyPatch = Partial<{
+  company_name: string;
+  subscriptions: Record<string, boolean>;
+  hardware: Record<string, boolean>;
+  ansible_nodes: number;
+  rhel_subscriptions: number;
+}>;
 
 export interface Settings {
   google_connected: boolean;
@@ -169,15 +200,33 @@ export const api = {
     }),
   tasks: () => fetchJson<TaskGroup[]>("/api/v1/tasks"),
   tasksSummary: () => fetchJson<TasksSummary>("/api/v1/tasks/summary"),
-  contacts: (q?: string, companyId?: number) => {
+  contacts: (q?: string, companyId?: number, includeIgnored?: boolean) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (companyId) params.set("company_id", String(companyId));
+    if (includeIgnored) params.set("include_ignored", "true");
     const qs = params.toString();
     return fetchJson<Contact[]>(`/api/v1/contacts${qs ? `?${qs}` : ""}`);
   },
   companies: () => fetchJson<{ id: number; name: string }[]>("/api/v1/companies"),
-  updateContact: (id: number, body: { company_override?: string }) =>
+  assetsCatalog: () => fetchJson<AssetsCatalog>("/api/v1/assets/catalog"),
+  assets: () => fetchJson<AssetCompany[]>("/api/v1/assets"),
+  assetsAvailableCompanies: () =>
+    fetchJson<AvailableCompany[]>("/api/v1/assets/available-companies"),
+  attachAssetCompany: (companyId: number) =>
+    fetchJson<AssetCompany>("/api/v1/assets/companies", {
+      method: "POST",
+      body: JSON.stringify({ company_id: companyId }),
+    }),
+  updateAssetCompany: (companyId: number, body: AssetCompanyPatch) =>
+    fetchJson<AssetCompany>(`/api/v1/assets/companies/${companyId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  updateContact: (
+    id: number,
+    body: { company_override?: string; is_ignored?: boolean }
+  ) =>
     fetchJson<Contact>(`/api/v1/contacts/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),

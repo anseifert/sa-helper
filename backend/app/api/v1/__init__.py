@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
+    assets,
     auth,
     companies,
     contacts,
@@ -24,6 +25,7 @@ router.include_router(oauth.router, prefix="/oauth", tags=["oauth"])
 
 # Protected: requires session cookie from POST /api/v1/auth/login
 protected = APIRouter(dependencies=[Depends(require_auth)])
+protected.include_router(assets.router, prefix="/assets", tags=["assets"])
 protected.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 protected.include_router(contacts.router, prefix="/contacts", tags=["contacts"])
 protected.include_router(companies.router, prefix="/companies", tags=["companies"])

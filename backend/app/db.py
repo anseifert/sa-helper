@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
+from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_settings
@@ -28,10 +29,27 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _session_factory
 
 
+def _migrate_contacts_is_ignored(sync_conn) -> None:
+    columns = {col["name"] for col in inspect(sync_conn).get_columns("contacts")}
+    if "is_ignored" not in columns:
+        sync_conn.execute(
+            text(
+                "ALTER TABLE contacts ADD COLUMN is_ignored BOOLEAN NOT NULL DEFAULT 0"
+            )
+        )
+
+
 async def init_db() -> None:
+    from app.services.assets import seed_asset_companies
+
     engine = get_engine()
+    factory = get_session_factory()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_migrate_contacts_is_ignored)
+    async with factory() as session:
+        await seed_asset_companies(session)
+        await session.commit()
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

@@ -12,6 +12,7 @@ class AgingBucket(BaseModel):
 class CompanyTaskCount(BaseModel):
     company_id: int | None
     company_name: str
+    section_id: str
     count: int
 
 

@@ -26,6 +26,7 @@ def _contact_out(c: Contact) -> ContactOut:
         company_name=name,
         company_override=c.company_override,
         is_internal=c.is_internal,
+        is_ignored=bool(c.is_ignored),
         title=c.title,
         notes=c.notes,
         source=c.source,
@@ -38,9 +39,14 @@ def _contact_out(c: Contact) -> ContactOut:
 async def list_contacts(
     q: str | None = Query(None, description="Search email or name"),
     company_id: int | None = Query(None),
+    include_ignored: bool = Query(
+        False, description="Include contacts marked as ignored (hidden by default)"
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> list[ContactOut]:
     stmt = select(Contact).options(selectinload(Contact.company))
+    if not include_ignored:
+        stmt = stmt.where(Contact.is_ignored == False)  # noqa: E712
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where(
@@ -72,6 +78,8 @@ async def update_contact(
             contact.company_id = co.id if co else None
     if body.company_id is not None:
         contact.company_id = body.company_id
+    if body.is_ignored is not None:
+        contact.is_ignored = body.is_ignored
 
     await session.flush()
     await session.refresh(contact, ["company"])

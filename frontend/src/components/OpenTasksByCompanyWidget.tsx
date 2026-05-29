@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { api, Dashboard, TaskExclusions } from "../api";
 
 type Props = {
@@ -105,12 +106,14 @@ export default function OpenTasksByCompanyWidget({
           <li className="text-gray-500">No open tasks in window</li>
         ) : (
           companies.map((c) => (
-            <li
-              key={c.company_id ?? "unassigned"}
-              className="flex justify-between gap-2"
-            >
-              <span className="truncate">{c.company_name}</span>
-              <span className="font-mono shrink-0">{c.count}</span>
+            <li key={c.company_id ?? "unassigned"}>
+              <Link
+                to={`/tasks?section=${encodeURIComponent(c.section_id ?? c.company_name.toLowerCase().replace(/ /g, "_"))}`}
+                className="flex justify-between gap-2 rounded px-1 -mx-1 hover:bg-gray-50 text-inherit hover:text-rh-red"
+              >
+                <span className="truncate hover:underline">{c.company_name}</span>
+                <span className="font-mono shrink-0">{c.count}</span>
+              </Link>
             </li>
           ))
         )}

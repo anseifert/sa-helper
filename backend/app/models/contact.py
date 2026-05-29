@@ -13,6 +13,7 @@ class Contact(Base, TimestampMixin):
     company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), nullable=True)
     company_override: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_internal: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_ignored: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[str] = mapped_column(String(32), default="gmail", nullable=False)

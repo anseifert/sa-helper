@@ -1,4 +1,4 @@
-from app.utils.priority_accounts import match_priority_account
+from app.utils.priority_accounts import match_priority_account, tasks_section_id_for_company
 
 
 def test_match_exxon():
@@ -20,3 +20,9 @@ def test_match_epp():
 
 def test_no_match():
     assert match_priority_account(company_name="Acme Corp") is None
+
+
+def test_tasks_section_id_for_company():
+    assert tasks_section_id_for_company("Exxon") == "exxonmobil"
+    assert tasks_section_id_for_company("Acme Corp") == "acme_corp"
+    assert tasks_section_id_for_company("Unassigned") == "unassigned"

@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Tasks from "./pages/Tasks";
 import Contacts from "./pages/Contacts";
 import SettingsPage from "./pages/Settings";
+import Assets from "./pages/Assets";
 import Login from "./pages/Login";
 import { api } from "./api";
 
@@ -11,6 +12,7 @@ const nav = [
   { to: "/", label: "Dashboard" },
   { to: "/tasks", label: "Tasks" },
   { to: "/contacts", label: "Contacts" },
+  { to: "/assets", label: "Assets" },
   { to: "/settings", label: "Settings" },
 ];
 
@@ -68,6 +70,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="contacts" element={<Contacts />} />
+          <Route path="assets" element={<Assets />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>

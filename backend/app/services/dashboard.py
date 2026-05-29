@@ -23,6 +23,7 @@ from app.schemas.dashboard import (
 )
 from app.schemas.recommendation import RecommendationOut
 from app.utils.datetime_util import ensure_utc
+from app.utils.priority_accounts import tasks_section_id_for_company
 
 logger = structlog.get_logger()
 
@@ -152,17 +153,20 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
             else:
                 bucket_map["15-30d"].count += 1
 
-        open_by_company = [
-            CompanyTaskCount(
-                company_id=cid,
-                company_name=company_names.get(cid, "Unassigned"),
-                count=cnt,
+        open_by_company = []
+        for cid, cnt in sorted(
+            counts_by_company.items(),
+            key=lambda item: company_names.get(item[0], "Unassigned").lower(),
+        ):
+            name = company_names.get(cid, "Unassigned")
+            open_by_company.append(
+                CompanyTaskCount(
+                    company_id=cid,
+                    company_name=name,
+                    section_id=tasks_section_id_for_company(name),
+                    count=cnt,
+                )
             )
-            for cid, cnt in sorted(
-                counts_by_company.items(),
-                key=lambda item: company_names.get(item[0], "Unassigned").lower(),
-            )
-        ]
     except Exception:
         logger.exception("dashboard_tasks_failed")
 

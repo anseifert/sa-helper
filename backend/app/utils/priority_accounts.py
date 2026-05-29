@@ -69,3 +69,14 @@ def priority_display_name(key: str) -> str:
 
 def priority_sort_key(key: str) -> int:
     return _ACCOUNT_ORDER.get(key, 999)
+
+
+def tasks_section_id_for_company(company_name: str) -> str:
+    """Stable section id used on /tasks?section=… (matches Tasks page grouping)."""
+    key = match_priority_account(company_name=company_name)
+    if key:
+        return key
+    name = (company_name or "Unassigned").strip()
+    if name.lower() == "unassigned":
+        return "unassigned"
+    return name.lower().replace(" ", "_")

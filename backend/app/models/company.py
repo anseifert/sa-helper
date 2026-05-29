@@ -13,3 +13,6 @@ class Company(Base, TimestampMixin):
 
     contacts: Mapped[list["Contact"]] = relationship(back_populates="company")
     tasks: Mapped[list["Task"]] = relationship(back_populates="company")
+    assets: Mapped["CompanyAssets | None"] = relationship(
+        back_populates="company", uselist=False
+    )
