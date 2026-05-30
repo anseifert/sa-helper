@@ -13,7 +13,7 @@ router = APIRouter()
 logger = structlog.get_logger()
 
 # Bump when verifying production deploy (curl /api/v1/health).
-APP_VERSION = "2026.05.22-calendar-today-tz"
+APP_VERSION = "2026.05.22-onboarding-splash"
 
 
 @router.get("/health", response_model=HealthResponse)

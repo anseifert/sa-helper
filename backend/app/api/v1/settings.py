@@ -1,5 +1,6 @@
 import json
 
+import structlog
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -10,6 +11,7 @@ from app.config import get_settings
 from app.models.setting import Setting
 
 router = APIRouter()
+logger = structlog.get_logger()
 
 PUBLIC_KEYS = {"last_sync_at", "user_email"}
 
@@ -27,11 +29,21 @@ async def get_app_settings(session: AsyncSession = Depends(get_session)) -> Sett
     from app.services.google_client import is_google_connected
 
     settings = get_settings()
-    result = await session.execute(
-        select(Setting).where(Setting.key.in_(PUBLIC_KEYS))
-    )
-    kv = {r.key: r.value for r in result.scalars().all()}
-    google_connected = await is_google_connected(session)
+    try:
+        result = await session.execute(
+            select(Setting).where(Setting.key.in_(PUBLIC_KEYS))
+        )
+        kv = {r.key: r.value for r in result.scalars().all()}
+    except Exception:
+        logger.exception("settings_kv_read_failed")
+        kv = {}
+
+    try:
+        google_connected = await is_google_connected(session)
+    except Exception:
+        logger.warning("settings_google_check_failed", exc_info=True)
+        google_connected = False
+
     last_sync_at = kv.get("last_sync_at")
     return SettingsOut(
         google_connected=google_connected,

@@ -7,6 +7,7 @@ from app.api.v1 import (
     contacts,
     dashboard,
     health,
+    onboarding,
     oauth,
     recommendations,
     settings,
@@ -25,6 +26,7 @@ router.include_router(oauth.router, prefix="/oauth", tags=["oauth"])
 
 # Protected: requires session cookie from POST /api/v1/auth/login
 protected = APIRouter(dependencies=[Depends(require_auth)])
+protected.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
 protected.include_router(assets.router, prefix="/assets", tags=["assets"])
 protected.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 protected.include_router(contacts.router, prefix="/contacts", tags=["contacts"])

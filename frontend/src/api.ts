@@ -164,6 +164,12 @@ export type AssetCompanyPatch = Partial<{
   rhel_subscriptions: number;
 }>;
 
+export interface OnboardingStatus {
+  google_connected: boolean;
+  last_sync_at: string | null;
+  onboarding_complete: boolean;
+}
+
 export interface Settings {
   google_connected: boolean;
   slack_configured: boolean;
@@ -194,6 +200,7 @@ export const api = {
     }),
   logout: () =>
     fetchJson<AuthStatus>("/api/v1/auth/logout", { method: "POST" }),
+  onboardingStatus: () => fetchJson<OnboardingStatus>("/api/v1/onboarding/status"),
   dashboard: () => fetchJson<Dashboard>("/api/v1/dashboard"),
   updateTaskExclusions: (body: TaskExclusions) =>
     fetchJson<TaskExclusions>("/api/v1/dashboard/exclusions", {

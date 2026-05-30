@@ -37,6 +37,20 @@ curl -s https://sa-hub.digitalgiants.net/api/v1/auth/me
 
 If `auth/me` returns **Not Found**, the backend image was not rebuilt. Run `docker compose build --no-cache backend && docker compose up -d`.
 
+### Home page shows “Internal Server Error” instead of onboarding splash
+
+The splash needs a **new frontend and backend** build. Verify:
+
+```bash
+curl -s http://localhost:8000/api/v1/health
+# expect "app_version":"2026.05.22-onboarding-splash"
+
+curl -s -b cookies.txt http://localhost:8000/api/v1/onboarding/status
+# expect JSON with onboarding_complete, not 500
+```
+
+Then hard-refresh the browser (Cmd+Shift+R). If `/api/v1/settings` or `/api/v1/dashboard` still fail, the splash should appear anyway on builds from `2026.05.22-onboarding-splash` onward.
+
 ### Podman: UI or API still looks old after `podman compose up -d --build`
 
 Usually **not** a browser problem until the server is actually running new images. Check in this order:

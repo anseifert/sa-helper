@@ -1,64 +1,75 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, Dashboard as Dash, TaskExclusions } from "../api";
+import { api, Dashboard as Dash, OnboardingStatus, TaskExclusions } from "../api";
 import OnboardingSplash from "../components/OnboardingSplash";
 import OpenTasksByCompanyWidget from "../components/OpenTasksByCompanyWidget";
 import TodayMeetingsWidget from "../components/TodayMeetingsWidget";
 
+function needsOnboarding(status: OnboardingStatus | null): boolean {
+  if (!status) return true;
+  if (status.onboarding_complete === true) return false;
+  if (status.onboarding_complete === false) return true;
+  return !(status.google_connected && status.last_sync_at);
+}
+
 export default function DashboardPage() {
-  const [onboarding, setOnboarding] = useState<{
-    google_connected: boolean;
-    last_sync_at: string | null;
-    onboarding_complete: boolean;
-  } | null>(null);
+  const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const [data, setData] = useState<Dash | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
 
-  const loadSettings = useCallback(() => {
-    return api.settings().then((s) => {
-      setOnboarding({
-        google_connected: s.google_connected,
-        last_sync_at: s.last_sync_at,
-        onboarding_complete: s.onboarding_complete,
-      });
-      return s;
-    });
-  }, []);
-
-  const loadDashboard = useCallback(() => {
-    return api.dashboard().then(setData).catch((e) => setErr(String(e)));
+  const loadOnboarding = useCallback(async (): Promise<OnboardingStatus> => {
+    try {
+      return await api.onboardingStatus();
+    } catch {
+      try {
+        const s = await api.settings();
+        return {
+          google_connected: s.google_connected,
+          last_sync_at: s.last_sync_at,
+          onboarding_complete:
+            s.onboarding_complete ?? !!(s.google_connected && s.last_sync_at),
+        };
+      } catch {
+        return {
+          google_connected: false,
+          last_sync_at: null,
+          onboarding_complete: false,
+        };
+      }
+    }
   }, []);
 
   const refresh = useCallback(async () => {
-    setErr(null);
     setChecking(true);
     try {
-      const s = await loadSettings();
-      if (s.onboarding_complete) {
-        await loadDashboard();
+      const status = await loadOnboarding();
+      setOnboarding(status);
+      if (!needsOnboarding(status)) {
+        const dash = await api.dashboard();
+        setData(dash);
       } else {
         setData(null);
       }
-    } catch (e) {
-      setErr(String(e));
+    } catch {
+      setOnboarding({
+        google_connected: false,
+        last_sync_at: null,
+        onboarding_complete: false,
+      });
+      setData(null);
     } finally {
       setChecking(false);
     }
-  }, [loadSettings, loadDashboard]);
+  }, [loadOnboarding]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  if (!onboarding && !err) {
+  if (!onboarding) {
     return <p className="text-gray-500">Loading…</p>;
   }
 
-  if (err && !onboarding) {
-    return <p className="text-red-600">{err}</p>;
-  }
-
-  if (onboarding && !onboarding.onboarding_complete) {
+  if (needsOnboarding(onboarding)) {
     return (
       <OnboardingSplash
         googleConnected={onboarding.google_connected}
@@ -69,8 +80,9 @@ export default function DashboardPage() {
     );
   }
 
-  if (err) return <p className="text-red-600">{err}</p>;
-  if (!data) return <p className="text-gray-500">Loading dashboard…</p>;
+  if (!data) {
+    return <p className="text-gray-500">Loading dashboard…</p>;
+  }
 
   return (
     <div className="space-y-8">
@@ -82,7 +94,7 @@ export default function DashboardPage() {
       <section>
         <h2 className="text-xl font-semibold mb-3">Focus for today</h2>
         {data.focus_today.length === 0 ? (
-          <p className="text-gray-500 text-sm">No focus items yet — run sync after connecting Google.</p>
+          <p className="text-gray-500 text-sm">No focus items yet.</p>
         ) : (
           <ul className="space-y-2">
             {data.focus_today.map((r) => (
@@ -115,7 +127,10 @@ export default function DashboardPage() {
           onExclusionsChange={(next: TaskExclusions) =>
             setData((prev) => (prev ? { ...prev, task_exclusions: next } : prev))
           }
-          onRefresh={loadDashboard}
+          onRefresh={async () => {
+            const dash = await api.dashboard();
+            setData(dash);
+          }}
         />
         <Widget title="Aging (open tasks)">
           <ul className="text-sm space-y-1">
