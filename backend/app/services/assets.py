@@ -13,6 +13,7 @@ from app.models.company import Company
 from app.models.company_assets import CompanyAssets
 from app.schemas.assets import AssetCompanyOut, AssetsCatalogOut, AvailableCompanyOut, CatalogItemOut
 from app.services.company_service import get_or_create_company
+from app.utils.datetime_util import ensure_utc
 from app.utils.priority_accounts import priority_sort_key, tasks_section_id_for_company
 
 
@@ -24,38 +25,35 @@ def assets_catalog() -> AssetsCatalogOut:
 
 
 def _subscriptions_from_row(row: CompanyAssets) -> dict[str, bool]:
-    return {
-        "ocp": row.sub_ocp,
-        "oke": row.sub_oke,
-        "ovm": row.sub_ovm,
-        "rhel": row.sub_rhel,
-        "aap": row.sub_aap,
-        "acs": row.sub_acs,
-        "acm": row.sub_acm,
-    }
+    return {key: bool(getattr(row, f"sub_{key}")) for key in SUBSCRIPTION_KEYS}
 
 
 def _hardware_from_row(row: CompanyAssets) -> dict[str, bool]:
-    return {
-        "hp": row.hw_hp,
-        "dell": row.hw_dell,
-        "cisco": row.hw_cisco,
-        "palo_alto": row.hw_palo_alto,
-        "fortinet": row.hw_fortinet,
+    mapping = {
+        "hp": "hw_hp",
+        "dell": "hw_dell",
+        "cisco": "hw_cisco",
+        "palo_alto": "hw_palo_alto",
+        "fortinet": "hw_fortinet",
     }
+    return {key: bool(getattr(row, mapping[key])) for key in HARDWARE_KEYS}
 
 
 def _asset_company_out(company: Company, row: CompanyAssets) -> AssetCompanyOut:
+    from datetime import datetime, timezone
+
+    created = ensure_utc(row.created_at) or datetime.now(timezone.utc)
+    updated = ensure_utc(row.updated_at) or created
     return AssetCompanyOut(
         company_id=company.id,
         company_name=company.name,
         company_domain=company.domain,
         subscriptions=_subscriptions_from_row(row),
         hardware=_hardware_from_row(row),
-        ansible_nodes=row.ansible_nodes,
-        rhel_subscriptions=row.rhel_subscriptions,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+        ansible_nodes=int(row.ansible_nodes or 0),
+        rhel_subscriptions=int(row.rhel_subscriptions or 0),
+        created_at=created,
+        updated_at=updated,
     )
 
 
@@ -118,6 +116,8 @@ async def attach_company(session: AsyncSession, company_id: int) -> AssetCompany
     row = CompanyAssets(company_id=company_id)
     session.add(row)
     await session.flush()
+    await session.refresh(row)
+    await session.refresh(company)
     return _asset_company_out(company, row)
 
 
@@ -174,4 +174,6 @@ async def update_asset_company(
         row.rhel_subscriptions = max(0, int(rhel_subscriptions))
 
     await session.flush()
+    await session.refresh(row)
+    await session.refresh(company)
     return _asset_company_out(company, row)

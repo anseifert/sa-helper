@@ -55,3 +55,13 @@ async def test_assets_seed_and_update():
         assert updated.subscriptions["ocp"] is True
         assert updated.hardware["fortinet"] is False
         assert updated.ansible_nodes == 5
+
+    async with factory() as session:
+        toggled = await update_asset_company(
+            session,
+            row.company_id,
+            subscriptions={"ocp": False},
+        )
+        await session.commit()
+        assert toggled.subscriptions["ocp"] is False
+        assert toggled.subscriptions["rhel"] is True

@@ -1,3 +1,4 @@
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,7 @@ from app.services.assets import (
 )
 
 router = APIRouter()
+logger = structlog.get_logger()
 
 
 @router.get("/catalog", response_model=AssetsCatalogOut)
@@ -66,3 +68,6 @@ async def patch_asset_company(
         )
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        logger.exception("patch_asset_company_failed", company_id=company_id)
+        raise HTTPException(500, f"Could not save assets: {e}") from e
