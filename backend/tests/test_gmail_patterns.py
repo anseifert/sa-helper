@@ -62,6 +62,20 @@ def test_re_prefix_not_a_task():
     assert results == []
 
 
+def test_team_deno_weekly_not_a_task():
+    results = classify_gmail_thread(
+        user_email="sa@redhat.com",
+        user_domain="redhat.com",
+        last_from_user=False,
+        last_message_at=datetime.now(timezone.utc),
+        subject="Team Deno Weekly",
+        snippet="Agenda for this week",
+        has_user_reply_after_customer=False,
+        customer_asked_no_reply=False,
+    )
+    assert results == []
+
+
 def test_notes_prefix_not_a_task():
     results = classify_gmail_thread(
         user_email="sa@redhat.com",

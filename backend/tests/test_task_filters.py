@@ -14,6 +14,8 @@ def test_excluded_prefixes():
     assert is_excluded_subject("Re: Follow up thread")
     assert is_excluded_subject("Notes Call summary")
     assert is_excluded_subject("Invitation Team sync")
+    assert is_excluded_subject("Team Deno Weekly — notes")
+    assert is_excluded_subject("Re: Team Deno Weekly agenda")
     assert not is_excluded_subject("Follow up on proposal")
 
 

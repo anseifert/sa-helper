@@ -11,6 +11,8 @@ CALENDAR_ONLY_TASK_TYPES = frozenset({"calendar_action"})
 
 # Email subjects to drop from Tasks (case-insensitive, start of subject line)
 EXCLUDED_SUBJECT_PREFIXES = ("re:", "notes", "invitation")
+# Substrings anywhere in the subject line
+EXCLUDED_SUBJECT_PHRASES = ("team deno weekly",)
 
 # Gmail / notification subjects for calendar invites and updates
 _CALENDAR_INVITE_SUBJECT = re.compile(
@@ -41,7 +43,9 @@ def is_excluded_subject(title: str = "", description: str | None = None) -> bool
     if not line and description:
         line = (description or "").split("\n", 1)[0].strip()[:200]
     lower = line.lower()
-    return any(lower.startswith(prefix) for prefix in EXCLUDED_SUBJECT_PREFIXES)
+    if any(lower.startswith(prefix) for prefix in EXCLUDED_SUBJECT_PREFIXES):
+        return True
+    return any(phrase in lower for phrase in EXCLUDED_SUBJECT_PHRASES)
 
 
 def is_gmail_calendar_notification(
