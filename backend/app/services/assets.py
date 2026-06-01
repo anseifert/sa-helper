@@ -1,7 +1,5 @@
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-
 from app.assets_catalog import (
     ASSET_SEED_COMPANIES,
     HARDWARE_KEYS,
@@ -80,9 +78,9 @@ async def seed_asset_companies(session: AsyncSession) -> None:
 
 async def list_asset_companies(session: AsyncSession) -> list[AssetCompanyOut]:
     result = await session.execute(
-        select(Company, CompanyAssets)
-        .join(CompanyAssets, CompanyAssets.company_id == Company.id)
-        .options(selectinload(Company.assets))
+        select(Company, CompanyAssets).join(
+            CompanyAssets, CompanyAssets.company_id == Company.id
+        )
     )
     pairs = list(result.all())
     return [_asset_company_out(c, a) for c, a in _sort_companies(pairs)]

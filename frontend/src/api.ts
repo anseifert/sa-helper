@@ -32,7 +32,10 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new Error("Not authenticated");
   }
-  if (!res.ok) throw new Error(await parseError(res));
+  if (!res.ok) {
+    const msg = await parseError(res);
+    throw new Error(`${res.status} ${path}: ${msg}`);
+  }
   return res.json();
 }
 
@@ -222,6 +225,10 @@ export const api = {
     return fetchJson<Contact[]>(`/api/v1/contacts${qs ? `?${qs}` : ""}`);
   },
   companies: () => fetchJson<{ id: number; name: string }[]>("/api/v1/companies"),
+  assetsReady: () =>
+    fetchJson<{ ready: boolean; error?: string; company_assets_rows?: number }>(
+      "/api/v1/assets/ready"
+    ),
   assetsCatalog: () => fetchJson<AssetsCatalog>("/api/v1/assets/catalog"),
   assets: () => fetchJson<AssetCompany[]>("/api/v1/assets"),
   assetsAvailableCompanies: () =>

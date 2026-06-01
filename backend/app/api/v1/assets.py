@@ -27,16 +27,42 @@ async def get_catalog() -> AssetsCatalogOut:
     return assets_catalog()
 
 
+@router.get("/ready")
+async def assets_ready(session: AsyncSession = Depends(get_session)) -> dict:
+    """Diagnostics: confirms company_assets table exists (use when debugging 500s)."""
+    from sqlalchemy import text
+
+    try:
+        count = (
+            await session.execute(text("SELECT COUNT(*) FROM company_assets"))
+        ).scalar_one()
+        return {"ready": True, "company_assets_rows": int(count)}
+    except Exception as e:
+        logger.exception("assets_ready_check_failed")
+        msg = str(e)
+        if "no such table" in msg.lower():
+            msg = "missing table company_assets — rebuild and restart backend container"
+        return {"ready": False, "error": msg}
+
+
 @router.get("", response_model=list[AssetCompanyOut])
 async def get_assets(session: AsyncSession = Depends(get_session)) -> list[AssetCompanyOut]:
-    return await list_asset_companies(session)
+    try:
+        return await list_asset_companies(session)
+    except Exception as e:
+        logger.exception("get_assets_failed")
+        raise HTTPException(500, f"Could not load assets: {e}") from e
 
 
 @router.get("/available-companies", response_model=list[AvailableCompanyOut])
 async def get_available_companies(
     session: AsyncSession = Depends(get_session),
 ) -> list[AvailableCompanyOut]:
-    return await list_available_companies(session)
+    try:
+        return await list_available_companies(session)
+    except Exception as e:
+        logger.exception("get_available_companies_failed")
+        raise HTTPException(500, f"Could not list companies: {e}") from e
 
 
 @router.post("/companies", response_model=AssetCompanyOut, status_code=201)

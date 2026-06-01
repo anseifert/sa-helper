@@ -37,6 +37,36 @@ curl -s https://sa-hub.digitalgiants.net/api/v1/auth/me
 
 If `auth/me` returns **Not Found**, the backend image was not rebuilt. Run `docker compose build --no-cache backend && docker compose up -d`.
 
+### Assets page: “Internal server error” on checkboxes or load
+
+Collect these **on the server** (replace the host if needed):
+
+```bash
+# 1) Confirm the backend image includes assets fixes
+curl -s http://localhost:8000/api/v1/health
+# expect: "app_version":"2026.05.22-assets-patch" (or newer)
+
+# 2) Assets DB diagnostic (after logging into the app in your browser)
+curl -s -b /tmp/sa-cookies.txt http://localhost:8000/api/v1/assets/ready
+# expect: {"ready":true,"company_assets_rows":4}
+# if ready:false, the "error" field says what is wrong (usually missing table)
+
+# 3) Backend traceback (most useful) — reproduce the error, then immediately:
+podman compose logs backend --tail=80
+
+# 4) Optional: save session cookie from browser (DevTools → Application → Cookies),
+# then test the failing call:
+curl -s -b "sa_task_hub_session=PASTE_VALUE" http://localhost:8000/api/v1/assets
+```
+
+In the browser: **DevTools → Network** → click the failed red request (e.g. `assets` or `companies/3`) → copy **Status**, **Response** tab text. Newer frontends show `500 /api/v1/assets/...: Could not load assets: …` with the real reason.
+
+After `git pull`, rebuild and **recreate** the backend so migrations run:
+
+```bash
+podman compose build --no-cache backend && podman compose up -d --force-recreate backend
+```
+
 ### Home page shows “Internal Server Error” instead of onboarding splash
 
 The splash needs a **new frontend and backend** build. Verify:
