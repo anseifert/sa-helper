@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.assets_catalog import (
@@ -45,7 +47,7 @@ def _asset_company_out(company: Company, row: CompanyAssets) -> AssetCompanyOut:
     return AssetCompanyOut(
         company_id=company.id,
         company_name=company.name,
-        company_domain=company.domain,
+        company_domain=company.domain or "",
         subscriptions=_subscriptions_from_row(row),
         hardware=_hardware_from_row(row),
         ansible_nodes=int(row.ansible_nodes or 0),
@@ -171,6 +173,7 @@ async def update_asset_company(
     if rhel_subscriptions is not None:
         row.rhel_subscriptions = max(0, int(rhel_subscriptions))
 
+    row.updated_at = datetime.now(timezone.utc)
     await session.flush()
     await session.refresh(row)
     await session.refresh(company)

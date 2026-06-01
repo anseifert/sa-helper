@@ -22,6 +22,19 @@ def test_redhat_direct():
     assert hits and hits[0][0] == "redhat_attention"
 
 
+def test_redhat_direct_when_user_in_cc():
+    hits = classify_redhat_direct(
+        user_email="you@redhat.com",
+        from_header="manager@redhat.com",
+        to_header="peer@redhat.com",
+        cc_header="you@redhat.com",
+        subject="Feedback needed on proposal",
+        snippet="Please review by Friday",
+        last_from_user=False,
+    )
+    assert hits and hits[0][0] == "redhat_attention"
+
+
 def test_redhat_skips_user_sent():
     assert (
         classify_redhat_direct(

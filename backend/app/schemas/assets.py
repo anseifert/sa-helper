@@ -16,7 +16,7 @@ class AssetsCatalogOut(BaseModel):
 class AssetCompanyOut(BaseModel):
     company_id: int
     company_name: str
-    company_domain: str
+    company_domain: str = ""
     subscriptions: dict[str, bool]
     hardware: dict[str, bool]
     ansible_nodes: int

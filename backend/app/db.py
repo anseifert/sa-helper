@@ -51,10 +51,28 @@ def _migrate_company_assets(sync_conn) -> None:
         "hw_cisco": "BOOLEAN NOT NULL DEFAULT 0",
         "hw_palo_alto": "BOOLEAN NOT NULL DEFAULT 0",
         "hw_fortinet": "BOOLEAN NOT NULL DEFAULT 0",
+        # SQLite ALTER only allows constant defaults; timestamps added nullable then backfilled.
+        "created_at": "DATETIME",
+        "updated_at": "DATETIME",
     }
     for name, typedef in column_defs.items():
         if name not in existing:
             sync_conn.execute(text(f"ALTER TABLE company_assets ADD COLUMN {name} {typedef}"))
+    refreshed = {col["name"] for col in inspect(sync_conn).get_columns("company_assets")}
+    if "created_at" in refreshed:
+        sync_conn.execute(
+            text(
+                "UPDATE company_assets SET created_at = CURRENT_TIMESTAMP "
+                "WHERE created_at IS NULL"
+            )
+        )
+    if "updated_at" in refreshed:
+        sync_conn.execute(
+            text(
+                "UPDATE company_assets SET updated_at = CURRENT_TIMESTAMP "
+                "WHERE updated_at IS NULL"
+            )
+        )
 
 
 def _migrate_contacts_is_ignored(sync_conn) -> None:

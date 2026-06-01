@@ -59,6 +59,8 @@ async def list_open_tasks(session: AsyncSession) -> list[TaskOut]:
             task_type=task.task_type,
             title=task.title,
             description=task.description,
+            metadata_json=task.metadata_json,
+            user_email=settings.user_email,
         ):
             continue
         company = task.company

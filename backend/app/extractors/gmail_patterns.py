@@ -122,6 +122,7 @@ def classify_redhat_direct(
     user_email: str,
     from_header: str,
     to_header: str,
+    cc_header: str = "",
     subject: str,
     snippet: str,
     last_from_user: bool,
@@ -130,7 +131,11 @@ def classify_redhat_direct(
         return []
     if "redhat.com" not in (from_header or "").lower():
         return []
-    if user_email.lower() not in (to_header or "").lower():
+    from app.utils.gmail_recipients import gmail_to_eligible_for_tasks
+
+    if not gmail_to_eligible_for_tasks(
+        to_header=to_header, cc_header=cc_header, user_email=user_email
+    ):
         return []
     if REDHAT_NOISE.search(f"{subject} {snippet}"):
         return []

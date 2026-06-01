@@ -164,6 +164,8 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
                 task_type=t.task_type,
                 title=t.title,
                 description=t.description,
+                metadata_json=t.metadata_json,
+                user_email=settings.user_email,
             ):
                 continue
             if task_matches_exclusion(t, exclusions):

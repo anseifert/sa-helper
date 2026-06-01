@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,8 +61,11 @@ async def upsert_task(
         task.origin_url = data.origin_url
         task.badge_source = data.badge_source
         task.due_at = data.due_at
-        task.status = "open"
+        if task.status != "completed":
+            task.status = "open"
         task.company_id = company.id if company else task.company_id
+        if data.metadata is not None:
+            task.metadata_json = json.dumps(data.metadata)
     else:
         task = Task(
             source=data.source,
@@ -73,6 +78,7 @@ async def upsert_task(
             badge_source=data.badge_source,
             company_id=company.id if company else None,
             due_at=data.due_at,
+            metadata_json=json.dumps(data.metadata) if data.metadata else None,
         )
         session.add(task)
 

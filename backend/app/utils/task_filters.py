@@ -1,5 +1,6 @@
 """Exclude calendar invites and noisy subjects from Tasks; calendar on Today's meetings only."""
 
+import json
 import re
 
 # Synced from Google Calendar extractor
@@ -67,6 +68,34 @@ def is_gmail_calendar_notification(
     return False
 
 
+def is_ineligible_gmail_recipient(
+    *,
+    source: str,
+    metadata_json: str | None,
+    user_email: str = "",
+) -> bool:
+    """True when a Gmail task should be hidden (To / Google Groups rules)."""
+    if source != "gmail":
+        return False
+    user = (user_email or "").strip().lower()
+    if not user:
+        return False
+    if not metadata_json:
+        return True
+    try:
+        meta = json.loads(metadata_json)
+    except (json.JSONDecodeError, TypeError):
+        return True
+    if meta.get("gmail_to_eligible") is True:
+        return False
+    if meta.get("gmail_to_eligible") is False:
+        return True
+    in_recipients = meta.get("user_in_recipients") or meta.get("user_in_to")
+    if in_recipients and not meta.get("to_has_google_group"):
+        return False
+    return True
+
+
 def is_calendar_task(
     *,
     source: str,
@@ -75,8 +104,14 @@ def is_calendar_task(
     title: str = "",
     description: str | None = None,
     from_header: str = "",
+    metadata_json: str | None = None,
+    user_email: str = "",
 ) -> bool:
     """True if this open task should not appear on the Tasks page."""
+    if is_ineligible_gmail_recipient(
+        source=source, metadata_json=metadata_json, user_email=user_email
+    ):
+        return True
     if is_excluded_subject(title, description):
         return True
     if source in CALENDAR_SOURCES:

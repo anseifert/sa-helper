@@ -1,6 +1,8 @@
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.db import _migrate_company_assets
 from app.models import Base
 from app.models.company import Company
 from app.services.assets import (
@@ -65,3 +67,37 @@ async def test_assets_seed_and_update():
         await session.commit()
         assert toggled.subscriptions["ocp"] is False
         assert toggled.subscriptions["rhel"] is True
+
+
+@pytest.mark.asyncio
+async def test_legacy_company_assets_table_migrates():
+    """Older DBs may lack timestamp columns; migration must add them before PATCH."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("DROP TABLE company_assets"))
+        await conn.execute(
+            text(
+                "CREATE TABLE company_assets (id INTEGER PRIMARY KEY, company_id INTEGER NOT NULL UNIQUE)"
+            )
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO companies (name, domain, created_at, updated_at) "
+                "VALUES ('Legacy Co', 'legacy.com', datetime('now'), datetime('now'))"
+            )
+        )
+        await conn.execute(text("INSERT INTO company_assets (company_id) VALUES (1)"))
+        await conn.run_sync(_migrate_company_assets)
+
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        updated = await update_asset_company(
+            session,
+            1,
+            subscriptions={"aap": True},
+            hardware={"dell": True},
+        )
+        await session.commit()
+        assert updated.subscriptions["aap"] is True
+        assert updated.hardware["dell"] is True

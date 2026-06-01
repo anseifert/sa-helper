@@ -17,6 +17,7 @@ from app.extractors.gmail_patterns import (
 )
 from app.services.google_client import gmail_service
 from app.utils.domain import email_domain
+from app.utils.gmail_recipients import gmail_task_metadata, gmail_to_eligible_for_tasks
 
 logger = structlog.get_logger()
 
@@ -128,6 +129,25 @@ class GmailExtractor(BaseExtractor):
                 )
 
                 to_hdr = headers.get("To", "")
+                cc_hdr = headers.get("Cc", "")
+                list_id = headers.get("List-Id", "")
+                list_unsub = headers.get("List-Unsubscribe", "")
+                if not gmail_to_eligible_for_tasks(
+                    to_header=to_hdr,
+                    cc_header=cc_hdr,
+                    user_email=self.user_email,
+                    list_id=list_id,
+                    list_unsubscribe=list_unsub,
+                ):
+                    continue
+
+                task_meta = gmail_task_metadata(
+                    to_header=to_hdr,
+                    cc_header=cc_hdr,
+                    user_email=self.user_email,
+                    list_id=list_id,
+                    list_unsubscribe=list_unsub,
+                )
                 externals = external_participants(
                     headers, self.user_email, self.user_domain
                 )
@@ -164,6 +184,7 @@ class GmailExtractor(BaseExtractor):
                             origin_url=origin,
                             contact_emails=[],
                             company_domain=None,
+                            metadata=task_meta,
                         )
                     )
 
@@ -171,6 +192,7 @@ class GmailExtractor(BaseExtractor):
                     user_email=self.user_email,
                     from_header=from_hdr,
                     to_header=to_hdr,
+                    cc_header=cc_hdr,
                     subject=subject,
                     snippet=snippet,
                     last_from_user=last_from_user,
@@ -186,6 +208,7 @@ class GmailExtractor(BaseExtractor):
                             origin_url=origin,
                             contact_emails=[],
                             company_domain=None,
+                            metadata=task_meta,
                         )
                     )
 
@@ -243,6 +266,7 @@ class GmailExtractor(BaseExtractor):
                             origin_url=origin,
                             contact_emails=externals[:5],
                             company_domain=company_domain,
+                            metadata=task_meta,
                         )
                     )
 

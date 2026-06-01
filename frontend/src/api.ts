@@ -41,6 +41,7 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export interface Task {
   id: number;
+  status?: string;
   title: string;
   description?: string | null;
   task_type: string;
@@ -216,6 +217,8 @@ export const api = {
     }),
   tasks: () => fetchJson<TaskGroup[]>("/api/v1/tasks"),
   tasksSummary: () => fetchJson<TasksSummary>("/api/v1/tasks/summary"),
+  completeTask: (taskId: number) =>
+    fetchJson<Task>(`/api/v1/tasks/${taskId}/complete`, { method: "POST" }),
   contacts: (q?: string, companyId?: number, includeIgnored?: boolean) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);

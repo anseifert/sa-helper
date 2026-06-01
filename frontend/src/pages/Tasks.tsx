@@ -1,33 +1,86 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Badge from "../components/Badge";
 import { api, Task, TasksSummary } from "../api";
 
-function TaskRow({ t }: { t: Task }) {
+function removeTaskFromSummary(data: TasksSummary, taskId: number): TasksSummary {
+  const stripTasks = (tasks: Task[]) => {
+    const next = tasks.filter((t) => t.id !== taskId);
+    return { tasks: next, task_count: next.length };
+  };
+  const mapAccount = (account: TasksSummary["priority_accounts"][0]) => {
+    const { tasks, task_count } = stripTasks(account.tasks);
+    return { ...account, tasks, task_count, summary: account.summary };
+  };
+  const mapCategory = (cat: TasksSummary["concur"]) => {
+    const { tasks, task_count } = stripTasks(cat.tasks);
+    return { ...cat, tasks, task_count };
+  };
+  return {
+    priority_accounts: data.priority_accounts.map(mapAccount),
+    concur: mapCategory(data.concur),
+    redhat_direct: mapCategory(data.redhat_direct),
+    other_accounts: data.other_accounts.map(mapAccount),
+  };
+}
+
+function TaskRow({
+  t,
+  onComplete,
+}: {
+  t: Task;
+  onComplete: (taskId: number) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleComplete() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onComplete(t.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not complete task");
+      setBusy(false);
+    }
+  }
+
   return (
-    <li className="bg-white border rounded-lg p-3 flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="font-medium">{t.title}</p>
-        <p className="text-xs text-gray-500 mt-1">
-          {t.task_type.replace(/_/g, " ")}
-          {t.due_at && ` · due ${new Date(t.due_at).toLocaleDateString()}`}
-        </p>
-        {t.description && (
-          <p className="text-sm text-gray-600 mt-2 line-clamp-2">{t.description}</p>
-        )}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <Badge source={t.badge_source} />
-        {t.origin_url && (
-          <a
-            href={t.origin_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm text-rh-red hover:underline"
-          >
-            Open
-          </a>
-        )}
+    <li className="bg-white border rounded-lg p-3 flex items-start gap-3">
+      <input
+        type="checkbox"
+        checked={false}
+        disabled={busy}
+        onChange={() => void handleComplete()}
+        aria-label={`Mark complete: ${t.title}`}
+        className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-rh-red focus:ring-rh-red cursor-pointer disabled:opacity-50"
+      />
+      <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium">{t.title}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {t.task_type.replace(/_/g, " ")}
+            {t.due_at && ` · due ${new Date(t.due_at).toLocaleDateString()}`}
+          </p>
+          {t.description && (
+            <p className="text-sm text-gray-600 mt-2 line-clamp-2">{t.description}</p>
+          )}
+          {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge source={t.badge_source} />
+          {t.origin_url && (
+            <a
+              href={t.origin_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-rh-red hover:underline"
+            >
+              Open
+            </a>
+          )}
+        </div>
       </div>
     </li>
   );
@@ -39,12 +92,14 @@ function TaskSection({
   summary,
   tasks,
   expanded,
+  onComplete,
 }: {
   sectionId: string;
   title: string;
   summary: string;
   tasks: Task[];
   expanded: boolean;
+  onComplete: (taskId: number) => Promise<void>;
 }) {
   const [open, setOpen] = useState(expanded);
   useEffect(() => {
@@ -70,7 +125,7 @@ function TaskSection({
       {open && (
         <ul className="space-y-2 px-4 pb-4">
           {tasks.map((t) => (
-            <TaskRow key={t.id} t={t} />
+            <TaskRow key={t.id} t={t} onComplete={onComplete} />
           ))}
         </ul>
       )}
@@ -87,6 +142,11 @@ export default function Tasks() {
 
   useEffect(() => {
     api.tasksSummary().then(setData).catch((e) => setErr(String(e)));
+  }, []);
+
+  const handleComplete = useCallback(async (taskId: number) => {
+    await api.completeTask(taskId);
+    setData((prev) => (prev ? removeTaskFromSummary(prev, taskId) : prev));
   }, []);
 
   useEffect(() => {
@@ -120,7 +180,9 @@ export default function Tasks() {
         Open tasks from the last 30 days — prioritized for ExxonMobil, ConocoPhillips,
         Windstream/Uniti, and EPP, plus Concur and direct Red Hat mail. Calendar invites
         appear on the dashboard under Today&apos;s meetings only. Threads whose subject
-        starts with Re:, Notes:, or Invitation are excluded.
+        starts with Re:, Notes:, or Invitation are excluded. Gmail tasks require your
+        USER_EMAIL in To or Cc and exclude Google Groups recipients. Check a task to mark
+        it complete.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -152,6 +214,7 @@ export default function Tasks() {
           summary={account.summary}
           tasks={account.tasks}
           expanded={isExpanded(account.account_key)}
+          onComplete={handleComplete}
         />
       ))}
 
@@ -161,6 +224,7 @@ export default function Tasks() {
         summary={data.concur.summary}
         tasks={data.concur.tasks}
         expanded={isExpanded("concur")}
+        onComplete={handleComplete}
       />
 
       <TaskSection
@@ -169,6 +233,7 @@ export default function Tasks() {
         summary={data.redhat_direct.summary}
         tasks={data.redhat_direct.tasks}
         expanded={isExpanded("redhat_direct")}
+        onComplete={handleComplete}
       />
 
       {data.other_accounts.length > 0 && (
@@ -190,6 +255,7 @@ export default function Tasks() {
                   summary={account.summary}
                   tasks={account.tasks}
                   expanded={isExpanded(account.account_key)}
+                  onComplete={handleComplete}
                 />
               ))}
             </div>

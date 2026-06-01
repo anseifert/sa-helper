@@ -22,6 +22,7 @@ class ExtractedTask:
     due_at: datetime | None = None
     contact_emails: list[str] = field(default_factory=list)
     company_domain: str | None = None
+    metadata: dict | None = None
 
 
 class BaseExtractor(ABC):

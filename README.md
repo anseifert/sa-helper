@@ -44,7 +44,7 @@ Collect these **on the server** (replace the host if needed):
 ```bash
 # 1) Confirm the backend image includes assets fixes
 curl -s http://localhost:8000/api/v1/health
-# expect: "app_version":"2026.05.22-assets-patch" (or newer)
+# expect: "app_version":"2026.05.22-assets-timestamps" (or newer)
 
 # 2) Assets DB diagnostic (after logging into the app in your browser)
 curl -s -b /tmp/sa-cookies.txt http://localhost:8000/api/v1/assets/ready
