@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,10 @@ async def complete_task(session: AsyncSession, task_id: int) -> TaskOut:
             status_code=status.HTTP_409_CONFLICT,
             detail="Task already completed",
         )
-    task.status = "completed"
-    await session.flush()
     company_name = task.company.name if task.company else None
+    task.status = "completed"
+    task.updated_at = datetime.now(timezone.utc)
+    await session.flush()
+    # flush expires attributes; refresh avoids async lazy-load (MissingGreenlet) on response
+    await session.refresh(task)
     return _task_out(task, company_name)

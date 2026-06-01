@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+import structlog
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session
@@ -9,6 +10,7 @@ from app.services.tasks_query import list_open_tasks_grouped
 from app.services.tasks_summary import build_tasks_summary
 
 router = APIRouter()
+logger = structlog.get_logger()
 
 
 @router.get("", response_model=list[TaskGroupOut])
@@ -26,4 +28,10 @@ async def complete_task_endpoint(
     task_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> TaskOut:
-    return await complete_task(session, task_id)
+    try:
+        return await complete_task(session, task_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("complete_task_failed", task_id=task_id)
+        raise HTTPException(500, f"Could not complete task: {e}") from e
