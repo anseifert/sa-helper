@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 MEETING_WORDS = re.compile(
-    r"\b(meeting|call|zoom|teams|webex|schedule|calendar invite|sync up|catch up)\b",
+    r"\b(meeting|call|zoom|teams|webex|schedule|sync up|catch up)\b",
     re.I,
 )
 DOC_WORDS = re.compile(
@@ -69,11 +69,17 @@ def classify_gmail_thread(
     last_message_at: datetime | None,
     subject: str,
     snippet: str,
+    from_header: str = "",
     has_user_reply_after_customer: bool,
     customer_asked_no_reply: bool,
     stale_days: int = 7,
 ) -> list[tuple[str, str]]:
     """Return list of (task_type, title_suffix)."""
+    from app.utils.task_filters import is_gmail_calendar_notification
+
+    if is_gmail_calendar_notification(subject=subject, from_header=from_header, snippet=snippet):
+        return []
+
     results: list[tuple[str, str]] = []
     text = f"{subject} {snippet}"
     now = datetime.now(timezone.utc)

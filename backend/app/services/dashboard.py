@@ -25,6 +25,7 @@ from app.schemas.task_exclusions import TaskExclusionsOut
 from app.schemas.recommendation import RecommendationOut
 from app.utils.datetime_util import ensure_utc, sql_utc_days_ago
 from app.utils.priority_accounts import tasks_section_id_for_company
+from app.utils.task_filters import is_calendar_task
 
 logger = structlog.get_logger()
 
@@ -157,6 +158,14 @@ async def build_dashboard(session: AsyncSession) -> DashboardOut:
     try:
         counts_by_company: dict[int | None, int] = {}
         for t in await _open_tasks_in_window(session, window_start):
+            if is_calendar_task(
+                source=t.source,
+                badge_source=t.badge_source,
+                task_type=t.task_type,
+                title=t.title,
+                description=t.description,
+            ):
+                continue
             if task_matches_exclusion(t, exclusions):
                 continue
             cid = t.company_id

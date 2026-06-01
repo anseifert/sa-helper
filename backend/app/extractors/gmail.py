@@ -216,6 +216,7 @@ class GmailExtractor(BaseExtractor):
                     last_message_at=last_dt,
                     subject=subject,
                     snippet=snippet,
+                    from_header=from_hdr,
                     has_user_reply_after_customer=user_replied_after,
                     customer_asked_no_reply=customer_asked_no_reply,
                     stale_days=self.stale_days,

@@ -48,6 +48,21 @@ def test_meeting_language_detected():
     assert any(r[0] == "schedule_meeting" for r in results)
 
 
+def test_calendar_invitation_not_a_task():
+    results = classify_gmail_thread(
+        user_email="sa@redhat.com",
+        user_domain="redhat.com",
+        last_from_user=False,
+        last_message_at=datetime.now(timezone.utc),
+        subject="Invitation: Customer QBR",
+        snippet="You have been invited",
+        from_header="calendar-notification@google.com",
+        has_user_reply_after_customer=False,
+        customer_asked_no_reply=False,
+    )
+    assert results == []
+
+
 def test_customer_ask_pending():
     results = classify_gmail_thread(
         user_email="sa@redhat.com",

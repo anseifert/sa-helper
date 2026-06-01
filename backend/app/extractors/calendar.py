@@ -74,40 +74,9 @@ class CalendarExtractor(BaseExtractor):
         return items[:5]
 
     async def extract_tasks(self) -> list[ExtractedTask]:
-        tasks: list[ExtractedTask] = []
-        now = datetime.now(timezone.utc)
-        time_min = now.isoformat()
-        time_max = (now + timedelta(days=self.window_days)).isoformat()
-
-        try:
-            events = (
-                self.service.events()
-                .list(
-                    calendarId="primary",
-                    timeMin=time_min,
-                    timeMax=time_max,
-                    singleEvents=True,
-                    orderBy="startTime",
-                    maxResults=100,
-                )
-                .execute()
-            )
-        except HttpError as exc:
-            logger.warning("calendar_list_failed", status=exc.resp.status, reason=exc.reason)
-            raise RuntimeError(_calendar_http_error_message(exc)) from exc
-
-        for ev in events.get("items", []):
-            try:
-                tasks.extend(self._tasks_from_event(ev, now))
-            except Exception:
-                logger.warning(
-                    "calendar_event_skipped",
-                    event_id=ev.get("id"),
-                    exc_info=True,
-                )
-
-        logger.info("calendar_tasks_extracted", count=len(tasks))
-        return tasks
+        # Calendar appears only on the dashboard "Today's meetings" widget, not in Tasks.
+        logger.info("calendar_tasks_skipped_for_tasks_page")
+        return []
 
     def _tasks_from_event(self, ev: dict, now: datetime) -> list[ExtractedTask]:
         tasks: list[ExtractedTask] = []

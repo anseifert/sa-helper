@@ -118,7 +118,8 @@ export default function Tasks() {
     <div className="space-y-6 max-w-4xl">
       <p className="text-sm text-gray-600">
         Open tasks from the last 30 days — prioritized for ExxonMobil, ConocoPhillips,
-        Windstream/Uniti, and EPP, plus Concur and direct Red Hat mail.
+        Windstream/Uniti, and EPP, plus Concur and direct Red Hat mail. Calendar invites
+        appear on the dashboard under Today&apos;s meetings only.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">

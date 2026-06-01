@@ -7,6 +7,7 @@ from app.models.recommendation import Recommendation
 from app.models.task import Task
 from app.services.ollama import polish_recommendation
 from app.utils.datetime_util import as_sqlite_utc, sql_utc_days_ago, sql_utc_now
+from app.utils.task_filters import CALENDAR_ONLY_TASK_TYPES, CALENDAR_SOURCES
 
 logger = structlog.get_logger()
 
@@ -91,7 +92,9 @@ async def rebuild_recommendations(session: AsyncSession) -> int:
     calls = await session.execute(
         select(Task).where(
             Task.status == "open",
-            Task.task_type.in_(["schedule_meeting", "return_call", "calendar_action"]),
+            Task.task_type.in_(["schedule_meeting", "return_call"]),
+            Task.source.not_in(CALENDAR_SOURCES),
+            Task.task_type.not_in(CALENDAR_ONLY_TASK_TYPES),
         )
     )
     for t in calls.scalars().all():

@@ -8,6 +8,7 @@ from app.config import get_settings
 from app.models.task import Task
 from app.schemas.task import TaskGroupOut, TaskOut
 from app.utils.priority_accounts import match_priority_account, priority_display_name
+from app.utils.task_filters import is_calendar_task
 
 
 def _sort_key(task: Task) -> datetime:
@@ -52,6 +53,14 @@ async def list_open_tasks(session: AsyncSession) -> list[TaskOut]:
     tasks = list(result.scalars().all())
     out: list[TaskOut] = []
     for task in sorted(tasks, key=_sort_key):
+        if is_calendar_task(
+            source=task.source,
+            badge_source=task.badge_source,
+            task_type=task.task_type,
+            title=task.title,
+            description=task.description,
+        ):
+            continue
         company = task.company
         cname = company.name if company else None
         out.append(_task_out(task, cname))
