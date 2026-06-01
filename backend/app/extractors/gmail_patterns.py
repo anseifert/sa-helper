@@ -75,9 +75,11 @@ def classify_gmail_thread(
     stale_days: int = 7,
 ) -> list[tuple[str, str]]:
     """Return list of (task_type, title_suffix)."""
-    from app.utils.task_filters import is_gmail_calendar_notification
+    from app.utils.task_filters import is_excluded_subject, is_gmail_calendar_notification
 
-    if is_gmail_calendar_notification(subject=subject, from_header=from_header, snippet=snippet):
+    if is_excluded_subject(subject) or is_gmail_calendar_notification(
+        subject=subject, from_header=from_header, snippet=snippet
+    ):
         return []
 
     results: list[tuple[str, str]] = []

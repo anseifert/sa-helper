@@ -119,7 +119,8 @@ export default function Tasks() {
       <p className="text-sm text-gray-600">
         Open tasks from the last 30 days — prioritized for ExxonMobil, ConocoPhillips,
         Windstream/Uniti, and EPP, plus Concur and direct Red Hat mail. Calendar invites
-        appear on the dashboard under Today&apos;s meetings only.
+        appear on the dashboard under Today&apos;s meetings only. Threads whose subject
+        starts with Re:, Notes:, or Invitation are excluded.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
