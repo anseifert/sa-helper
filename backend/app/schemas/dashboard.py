@@ -39,6 +39,11 @@ class SyncHealthItem(BaseModel):
     error_message: str | None
 
 
+class TodayMeetingsOut(BaseModel):
+    meetings: list[TodayMeetingOut]
+    error: str | None = None
+
+
 class DashboardOut(BaseModel):
     recommendations: list[RecommendationOut]
     focus_today: list[RecommendationOut]

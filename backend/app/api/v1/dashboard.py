@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session
-from app.schemas.dashboard import DashboardOut
+from app.schemas.dashboard import DashboardOut, TodayMeetingsOut
 from app.schemas.task_exclusions import TaskExclusionsOut, TaskExclusionsUpdate
+from app.services.calendar_today import fetch_today_external_meetings
 from app.services.dashboard import build_dashboard, empty_dashboard
 from app.services.task_exclusions import load_task_exclusions, save_task_exclusions
 
@@ -23,6 +24,12 @@ async def dashboard(session: AsyncSession = Depends(get_session)) -> DashboardOu
         except Exception:
             exclusions = None
         return empty_dashboard(exclusions)
+
+
+@router.get("/today-meetings", response_model=TodayMeetingsOut)
+async def today_meetings(session: AsyncSession = Depends(get_session)) -> TodayMeetingsOut:
+    meetings, error = await fetch_today_external_meetings(session)
+    return TodayMeetingsOut(meetings=meetings, error=error)
 
 
 @router.put("/exclusions", response_model=TaskExclusionsOut)

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -34,6 +34,33 @@ def _parse_event_end(end: dict) -> datetime | None:
         except ValueError:
             return None
     return None
+
+
+def _parse_iso_datetime(iso: str) -> datetime | None:
+    try:
+        return ensure_utc(datetime.fromisoformat(iso.replace("Z", "+00:00")))
+    except ValueError:
+        return None
+
+
+def meeting_is_overdue(meeting: TodayMeetingOut, *, now: datetime | None = None) -> bool:
+    """True when the meeting end (or start + 1h if no end) is in the past."""
+    now_utc = ensure_utc(now) or datetime.now(timezone.utc)
+    if meeting.end_at:
+        end = _parse_iso_datetime(meeting.end_at)
+        return bool(end and end < now_utc)
+    start = _parse_iso_datetime(meeting.start_at)
+    if not start:
+        return False
+    return start + timedelta(hours=1) < now_utc
+
+
+def drop_overdue_meetings(
+    meetings: list[TodayMeetingOut],
+    *,
+    now: datetime | None = None,
+) -> list[TodayMeetingOut]:
+    return [m for m in meetings if not meeting_is_overdue(m, now=now)]
 
 
 def _today_bounds(tz_name: str) -> tuple[datetime, datetime]:
@@ -142,5 +169,7 @@ async def fetch_today_external_meetings(
             )
 
     meetings.sort(key=lambda m: m.start_at)
+    now_utc = datetime.now(timezone.utc)
+    meetings = drop_overdue_meetings(meetings, now=now_utc)
     logger.info("today_external_meetings", count=len(meetings), domain=internal_domain, tz=tz_name)
     return meetings, None

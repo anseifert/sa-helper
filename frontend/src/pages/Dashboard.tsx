@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, Dashboard as Dash, OnboardingStatus, TaskExclusions } from "../api";
+import { api, Dashboard as Dash, OnboardingStatus, Recommendation, TaskExclusions } from "../api";
 import OnboardingSplash from "../components/OnboardingSplash";
 import OpenTasksByCompanyWidget from "../components/OpenTasksByCompanyWidget";
 import TodayMeetingsWidget from "../components/TodayMeetingsWidget";
@@ -87,8 +87,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <TodayMeetingsWidget
-        meetings={data.today_meetings ?? []}
-        error={data.today_meetings_error ?? null}
+        initialMeetings={data.today_meetings ?? []}
+        initialError={data.today_meetings_error ?? null}
       />
 
       <section>
@@ -98,11 +98,20 @@ export default function DashboardPage() {
         ) : (
           <ul className="space-y-2">
             {data.focus_today.map((r) => (
-              <li key={r.id} className="bg-white border rounded-lg p-3 shadow-sm">
-                <span className="text-xs text-rh-red uppercase">{r.rec_type.replace(/_/g, " ")}</span>
-                <p className="font-medium">{r.title}</p>
-                {r.body && <p className="text-sm text-gray-600 mt-1">{r.body}</p>}
-              </li>
+              <FocusItem
+                key={r.id}
+                item={r}
+                onDismiss={(id) =>
+                  setData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          focus_today: prev.focus_today.filter((f) => f.id !== id),
+                        }
+                      : prev
+                  )
+                }
+              />
             ))}
           </ul>
         )}
@@ -181,6 +190,49 @@ export default function DashboardPage() {
         </Widget>
       </div>
     </div>
+  );
+}
+
+function FocusItem({
+  item,
+  onDismiss,
+}: {
+  item: Recommendation;
+  onDismiss: (id: number) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function handleDismiss() {
+    if (busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.dismissRecommendation(item.id);
+      onDismiss(item.id);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not dismiss");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="bg-white border rounded-lg p-3 shadow-sm flex items-start gap-3">
+      <input
+        type="checkbox"
+        checked={false}
+        disabled={busy}
+        onChange={() => void handleDismiss()}
+        aria-label={`Dismiss: ${item.title}`}
+        className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-rh-red focus:ring-rh-red cursor-pointer disabled:opacity-50"
+      />
+      <div className="min-w-0">
+        <span className="text-xs text-rh-red uppercase">{item.rec_type.replace(/_/g, " ")}</span>
+        <p className="font-medium">{item.title}</p>
+        {item.body && <p className="text-sm text-gray-600 mt-1">{item.body}</p>}
+        {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
+      </div>
+    </li>
   );
 }
 

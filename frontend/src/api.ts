@@ -210,6 +210,14 @@ export const api = {
     fetchJson<AuthStatus>("/api/v1/auth/logout", { method: "POST" }),
   onboardingStatus: () => fetchJson<OnboardingStatus>("/api/v1/onboarding/status"),
   dashboard: () => fetchJson<Dashboard>("/api/v1/dashboard"),
+  todayMeetings: () =>
+    fetchJson<{ meetings: TodayMeeting[]; error: string | null }>(
+      "/api/v1/dashboard/today-meetings"
+    ),
+  dismissRecommendation: (recId: number) =>
+    fetchJson<Recommendation>(`/api/v1/recommendations/${recId}/dismiss`, {
+      method: "POST",
+    }),
   updateTaskExclusions: (body: TaskExclusions) =>
     fetchJson<TaskExclusions>("/api/v1/dashboard/exclusions", {
       method: "PUT",

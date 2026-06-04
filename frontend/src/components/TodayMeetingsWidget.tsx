@@ -1,6 +1,10 @@
-import type { Dashboard } from "../api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, type Dashboard, type TodayMeeting } from "../api";
 
-type Meeting = Dashboard["today_meetings"][number];
+type Meeting = TodayMeeting;
+
+const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
 function formatTime(iso: string) {
   try {
@@ -18,28 +22,73 @@ function formatRange(start: string, end: string | null) {
   return `${formatTime(start)} – ${formatTime(end)}`;
 }
 
+function isMeetingOverdue(m: Meeting): boolean {
+  const now = Date.now();
+  if (m.end_at) {
+    const end = new Date(m.end_at).getTime();
+    return !Number.isNaN(end) && end < now;
+  }
+  const start = new Date(m.start_at).getTime();
+  if (Number.isNaN(start)) return false;
+  return start + HOUR_MS < now;
+}
+
 export default function TodayMeetingsWidget({
-  meetings,
-  error,
+  initialMeetings,
+  initialError,
 }: {
-  meetings: Meeting[];
-  error: string | null;
+  initialMeetings: Dashboard["today_meetings"];
+  initialError: string | null;
 }) {
+  const [meetings, setMeetings] = useState(initialMeetings);
+  const [error, setError] = useState(initialError);
+  const [clock, setClock] = useState(0);
+
+  const refreshMeetings = useCallback(async () => {
+    try {
+      const res = await api.todayMeetings();
+      setMeetings(res.meetings);
+      setError(res.error);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    setMeetings(initialMeetings);
+    setError(initialError);
+  }, [initialMeetings, initialError]);
+
+  useEffect(() => {
+    const hourId = window.setInterval(() => void refreshMeetings(), HOUR_MS);
+    return () => window.clearInterval(hourId);
+  }, [refreshMeetings]);
+
+  useEffect(() => {
+    const minuteId = window.setInterval(() => setClock((c) => c + 1), MINUTE_MS);
+    return () => window.clearInterval(minuteId);
+  }, []);
+
+  const visible = useMemo(
+    () => meetings.filter((m) => !isMeetingOverdue(m)),
+    [meetings, clock]
+  );
+
   return (
     <section className="bg-white border rounded-lg p-4 shadow-sm">
       <h2 className="text-xl font-semibold mb-1">Today&apos;s meetings</h2>
       <p className="text-sm text-gray-600 mb-3">
         Calendar events today with at least one attendee outside @redhat.com. Internal-only
-        meetings are hidden.
+        meetings are hidden. Refreshes hourly; ended meetings drop off automatically.
       </p>
 
       {error && <p className="text-sm text-amber-700 mb-2">{error}</p>}
 
-      {meetings.length === 0 && !error ? (
+      {visible.length === 0 && !error ? (
         <p className="text-sm text-gray-500">No external meetings on your calendar today.</p>
       ) : (
         <ul className="space-y-3">
-          {meetings.map((m) => (
+          {visible.map((m) => (
             <li
               key={m.event_id || m.start_at + m.title}
               className="border border-gray-100 rounded-lg p-3"
